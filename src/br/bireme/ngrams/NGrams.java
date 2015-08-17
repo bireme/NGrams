@@ -7,7 +7,7 @@
     NGrams is free software: you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public License as
     published by the Free Software Foundation, either version 2.1 of
-    the License, or (at your option) any later version.
+    the License, or (at y   our option) any later version.
 
     NGrams is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -31,6 +31,7 @@ import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
 import javax.xml.parsers.ParserConfigurationException;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -98,7 +99,7 @@ public class NGrams {
                 if (doc != null) {
                     writer.addDocument(doc);
                 }
-                if (++cur % 1000 == 0) {
+                if (++cur % 10000 == 0) {
                     System.out.println(">>> " + cur);
                 }
             }
@@ -288,81 +289,38 @@ public class NGrams {
         final String fname = parameters.indexed.name;
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
-                              param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE);
-        final Query query = parser.parse(QueryParser.escape(ntext));
-        final TopDocs top = searcher.search(query, 3);
-        final ScoreDoc[] scores = top.scoreDocs;
-        boolean stop = (scores.length == 0);
-        
-        if (!stop) {
-            ScoreDoc after = null;
-            
-            for (ScoreDoc sdoc : scores) {
-                final Document doc = searcher.doc(sdoc.doc);                
-                final float similarity = 
-                                   ngDistance.getDistance(ntext, doc.get(fname));
-                final String out = createResult(parameters, param, doc, 
+                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
+        if (!ntext.isEmpty()) {
+            final Query query = parser.parse(QueryParser.escape(ntext));
+            final TopDocs top = searcher.search(query, 10);        
+            final float lower = parameters.scores.first().minValue;
+            ScoreDoc[] scores = top.scoreDocs;
+            ScoreDoc after = null;        
+
+            outer: while (true) {                
+                for (ScoreDoc sdoc : scores) {
+                    final Document doc = searcher.doc(sdoc.doc);                
+                    final float similarity = 
+                                  ngDistance.getDistance(ntext, doc.get(fname));
+                    if (similarity < lower) {
+                        break outer;
+                    }
+                    final String out = createResult(parameters, param, doc, 
                                                         ngDistance, similarity);
-                after = sdoc;
-                if (out == null) {                        
-                    stop = true;
-                    break;
-                } else {
-                    //System.out.println(out);
-                    ret.add(out);
+                    if (out != null) {                        
+                        //System.out.println(out);
+                        ret.add(out);
+                    }
+                    after = sdoc;
+                }
+                if (after != null) {
+                    scores = searcher.searchAfter(after, query, 10).scoreDocs;
                 }
             }
-            if (!stop) {
-                searchRemaining(searcher, ngDistance, after, query, parameters, 
-                                                                    param, ret);
-            }
-        }        
+        }
         return ret;
     }
 
-    private static void searchRemaining(final IndexSearcher searcher,
-                                        final NGramDistance ngDistance,
-                                        final ScoreDoc after,
-                                        final Query query,
-                                        final Parameters parameters,
-                                        final String[] param,
-                                        final Set<String> result) 
-                                                            throws IOException {
-        assert searcher != null;
-        assert ngDistance != null;
-        assert after != null;
-        assert query != null;
-        assert parameters != null;
-        assert param != null;
-        assert result != null;
-        
-        final String fname = parameters.indexed.name;
-        final ScoreDoc[] scrs = searcher.searchAfter(after, query, 10).scoreDocs;
-        final String text = Tools.limitSize(Tools.normalize(
-                              param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE);
-        ScoreDoc last = null;
-        
-        for (ScoreDoc sdoc : scrs) {
-            final Document doc = searcher.doc(sdoc.doc);
-            final float similarity = 
-                     ngDistance.getDistance(text, doc.get(fname));
-            final String out = createResult(parameters, param, doc, ngDistance,
-                                                                    similarity);
-            if (out == null) {                        
-                last = null;
-                break;
-            } else {
-                last = sdoc;
-                //System.out.println(out);
-                result.add(out);                
-            }
-        }
-        if (last != null) {
-            searchRemaining(searcher, ngDistance, last, query, parameters, 
-                                                                 param, result);
-        }
-    }
-        
     // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
     private static String createResult(final Parameters parameters,
                                        final String[] param,
@@ -475,12 +433,52 @@ public class NGrams {
                 ret = (similarity >= ((NGramField)field).minScore) ? 1
                                                  : field.optionalMatch ? 0 : -1;
             }
+        } else if (field instanceof RegExpField) {
+            ret = compareRegExpFields(field, fld, doc);          
         } else { // ExactField
             final String nfld = Tools.limitSize(Tools.normalize(fld), 
                                                               MAX_NG_TEXT_SIZE);
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
         }        
+        return ret;
+    }
+    
+    private static int compareRegExpFields(final br.bireme.ngrams.Field field,
+                                           final String fld,
+                                           final Document doc) {
+        assert field != null;
+        assert fld != null;
+        assert doc != null;
+        
+        final String nfld = Tools.limitSize(Tools.normalize(fld), 
+                                                              MAX_NG_TEXT_SIZE);
+        final String idxText = (String)doc.get(field.name);
+        final RegExpField regExp = (RegExpField)field;
+        final Matcher mat = regExp.matcher;
+        final int ret;
+        
+        mat.reset(idxText);
+        if (mat.find()) {
+            final String content1 = mat.group(regExp.groupNum);
+            if (content1 == null) {
+                ret = compareFields(field, nfld, idxText);
+            } else {
+                mat.reset(nfld);
+                if (mat.find()) {
+                    final String content2 = mat.group(regExp.groupNum);
+                    if (content2 == null) {
+                        ret = compareFields(field, nfld, idxText);
+                    } else {
+                        ret = compareFields(field, content1, content2);
+                    }    
+                } else {
+                    ret = compareFields(field, nfld, idxText);
+                }
+            }
+        } else {
+            ret = compareFields(field, nfld, idxText);
+        }
         return ret;
     }
     

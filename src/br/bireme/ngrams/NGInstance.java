@@ -33,6 +33,7 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.MMapDirectory;
 import org.xml.sax.SAXException;
 
 /**
@@ -98,12 +99,15 @@ class NGInstance {
     
         return new IndexWriter(directory, cfg);
     }
-    
+        
     private static IndexSearcher getIndexSearcher(final String indexPath) 
                                                             throws IOException {
          
         final DirectoryReader ireader = DirectoryReader.open(
-                                FSDirectory.open(new File(indexPath).toPath()));
+                                //FSDirectory.open(new File(indexPath).toPath()));
+                               new MMapDirectory(new File(indexPath).toPath()));
+                               //new RAMDirectory(FSDirectory.open(new File(indexPath).toPath()), IOContext.DEFAULT));
+                               //new RAMDirectory(FSDirectory.open(new File(indexPath).toPath()), IOContext.READONCE));
         
         return new IndexSearcher(ireader);
     }

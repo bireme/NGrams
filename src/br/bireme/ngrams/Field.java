@@ -22,6 +22,8 @@
 package br.bireme.ngrams;
 
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -103,10 +105,39 @@ class ExactField extends Field {
     }
 }
 
+class RegExpField extends Field {
+    final Matcher matcher;
+    final int groupNum;
+    
+    RegExpField(final String name,
+                final int pos,
+                final String regularExpression,
+                final int groupNumber) {
+        this(name, pos, true, true, -1, regularExpression,groupNumber);
+    }
+    RegExpField(final String name,
+                final int pos,
+                final boolean optional,
+                final boolean optionalMatch,
+                final int requiredField,
+                final String pattern,
+                final int groupNumber) {
+        super(name, pos, optional, optionalMatch, requiredField);
+        if (pattern == null) {
+            throw new NullPointerException("pattern");
+        }
+        if (groupNumber <= 0) {
+            throw new IllegalArgumentException("groupNumber <= 0");
+        }
+        this.matcher = Pattern.compile(pattern).matcher("");
+        this.groupNum = groupNumber;
+    }
+}
+
 class IndexedNGramField extends Field {
     final float minScore;
     final Set<Integer> missingFields; // if missing field here then minimum
-                                       // score will be 1.0 instead minScore.
+                                      // score will be 1.0 instead minScore.
                                               
     IndexedNGramField(final String name,
                       final int pos,

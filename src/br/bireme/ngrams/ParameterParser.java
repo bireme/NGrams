@@ -49,6 +49,7 @@ import org.xml.sax.SAXException;
  *      <exactField pos="1" name="numero" status="optional" match="required"/>
  *      <exactField pos="4" name="ano" status="required" match="optional"/>
  *      <exactField pos="5" name="pais" status="optional" requiredField="2"/>
+ *      <regExpField pos="7" name="paginas" status="optional" requiredField="2" pattern="(\d+)" groupNum="1"/>
  *  </config>
 
  * @author Heitor Barbieri
@@ -82,10 +83,13 @@ class ParameterParser {
         final NodeList nNGramList = doc.getElementsByTagName("nGramField");
         final Set<NGramField> ngram = parseNGramFields(nNGramList);                
         
-        final NodeList nScoreList = doc.getElementsByTagName("score");
-        final Set<Score> scrs = parseScores(nScoreList);
+        final NodeList nRegExpList = doc.getElementsByTagName("regExpField");
+        final Set<RegExpField> regexp = parseRegExpFields(nRegExpList); 
         
-        return new Parameters(id, idxNGram, exact, ngram, scrs);
+        final NodeList nScoreList = doc.getElementsByTagName("score");
+        final TreeSet<Score> scrs = parseScores(nScoreList);
+                        
+        return new Parameters(id, idxNGram, exact, ngram, regexp, scrs);
     }
        
     static IdField parseIdField(final NodeList nIdList) throws IOException {
@@ -187,6 +191,56 @@ class ParameterParser {
         return ngramSet;
     }
     
+    static Set<RegExpField> parseRegExpFields(final NodeList nRegExpList) 
+                                                            throws IOException {
+        assert nRegExpList != null;
+        
+        final Set<RegExpField> regExpSet = new HashSet<>();
+        for (int idx = 0; idx < nRegExpList.getLength(); idx++) { 
+            final Node nNode = nRegExpList.item(idx);
+            
+            if (nNode.getNodeType() != Node.ELEMENT_NODE) {
+                throw new IOException("'NGramField' is not an Element node");
+            }
+            final Element eElement = (Element) nNode;
+            final String name = eElement.getAttribute("name");
+            if (name == null) {
+                throw new IOException("missing 'name' attribute");
+            }
+            final String pos = eElement.getAttribute("pos");
+            if (pos == null) {
+                throw new IOException("missing 'pos' attribute");
+            }
+            final String status = eElement.getAttribute("status");
+            final String match = eElement.getAttribute("match");
+            final String requiredField = eElement.getAttribute("requiredField");            
+            final String minScore = eElement.getAttribute("minScore");
+            if (minScore == null) {
+                throw new IOException("missing 'minScore' attribute");
+            }
+            final String pattern = eElement.getAttribute("pattern");
+            if (pattern == null) {
+                throw new IOException("missing 'pattern' attribute");
+            }
+            final String sgroupNum = eElement.getAttribute("groupNum");
+            if (sgroupNum == null) {
+                throw new IOException("missing 'groupNum' attribute");
+            }            
+            final RegExpField regexpf = new RegExpField(
+                  name,
+                  Integer.parseInt(pos),
+                  (status == null) ? true : !status.equals("required"),
+                  (match == null) ? true : !match.equals("required"),
+                  ((requiredField == null)||(requiredField.trim().isEmpty())) 
+                                             ? -1 
+                                             : Integer.parseInt(requiredField),
+                  pattern,
+                  Integer.parseInt(sgroupNum));
+            regExpSet.add(regexpf);
+        }
+        return regExpSet;
+    }
+    
     static Set<ExactField> parseExactFields(final NodeList nExactList) 
                                                             throws IOException {
         assert nExactList != null;
@@ -223,14 +277,15 @@ class ParameterParser {
         return exactSet;
     }
     
-    static Set<Score> parseScores(final NodeList nScoreList) throws IOException {
+    static TreeSet<Score> parseScores(final NodeList nScoreList) 
+                                                            throws IOException {
         assert nScoreList != null;
             
         final int len = nScoreList.getLength();
         if (len == 0) {
             throw new IOException("empty score set");
         }        
-        final Set<Score> scoreSet = new TreeSet<>();
+        final TreeSet<Score> scoreSet = new TreeSet<>();
         for (int idx = 0; idx < len; idx++) { 
             final Node nNode = nScoreList.item(idx);
             

@@ -27,8 +27,11 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.Normalizer;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -174,6 +177,41 @@ public class Tools {
         }
     }
     
+    public static void aggregate(final String file1,
+                                 final String file1Encoding,
+                                 final int aggregColumn) throws IOException {
+        if (file1 == null) {
+            throw new NullPointerException("file1");
+        }
+        if (file1Encoding == null) {
+            throw new NullPointerException("file1Encoding");
+        }
+        if (aggregColumn <= 0) {
+            throw new IllegalArgumentException("aggregColumn <= 0");
+        }
+        final Map<String,Integer> map = new HashMap<>();
+        final Charset charset1 = Charset.forName(file1Encoding);
+        try (BufferedReader reader1 = Files.newBufferedReader(
+                                          new File(file1).toPath(), charset1)) {
+            while (reader1.ready()) {
+                final String line = reader1.readLine().trim();
+                if (!line.isEmpty()) {
+                    final String[] split = line.split(" *\\| *");
+                    final String key = split[aggregColumn];
+                    final Integer value = map.get(key);
+                    map.put(key, (value == null) ? 1 : value + 1);
+                }
+            }
+        }
+        final Map<Integer,String> tmap = new TreeMap<>();
+        for (Map.Entry<String,Integer> entry : map.entrySet()) {
+            tmap.put(entry.getValue(), entry.getKey());
+        }    
+        for (Map.Entry<Integer,String> tentry : tmap.entrySet()) {
+            System.out.println(tentry.getValue() + " : " + tentry.getKey());
+        }
+    }
+    
     /**
      * 
      * @param in input String
@@ -181,9 +219,37 @@ public class Tools {
      *         accents removed and all converted to lower case.
      */
     public static String normalize(final String in) {
-        return (in == null) ? null  
-                : Normalizer.normalize(in.toLowerCase(),Normalizer.Form.NFD)
-                                                   .replaceAll("[^a-z0-9]", "");
+        final String ret;
+        
+        if (in == null) {
+            ret = null;
+        } else {
+            final String aux = Normalizer.normalize(in.toLowerCase(),
+                              Normalizer.Form.NFD).replaceAll("[^a-z0-9]", " ");
+            final int len = aux.length();
+            final StringBuilder builder = new StringBuilder();
+            boolean wasNumber = false;
+            
+            for (int idx = 0; idx < len; idx++) {
+                final int ch = aux.charAt(idx);
+                if ((ch >= 97) && (ch <= 122)) {  // a-z
+                    wasNumber = false;
+                    builder.append((char)ch);
+                } else if ((ch >= 48) && (ch <= 57)) { // 0-9
+                    wasNumber = true;
+                    builder.append((char)ch);                
+                } else {
+                    if ((idx > 0) && (idx < len - 1)) {
+                        final int after  = aux.charAt(idx + 1);                        
+                        if (wasNumber && (after >= 48) && (after <= 57)) { // 0-9
+                            builder.append(' ');
+                        }
+                    }
+                }
+            }
+            ret = builder.toString();
+        }
+        return ret;
     }
     
     public static float NGDistance(final String str1,
@@ -198,6 +264,11 @@ public class Tools {
         
         final String str1 = limitSize(normalize(args[0]), 100);
         final String str2 = limitSize(normalize(args[1]), 100);
-        System.out.println("dist=" + NGDistance(str1, str2));
+        System.out.println("args[0]=" + args[0]);
+        System.out.println("args[1]=" + args[1]);
+        System.out.println("str1=" + str1);
+        System.out.println("str2=" + str2);
+        System.out.println("dist=" + NGDistance(str1, str2) + "|" + str1 + "|" +
+                                                                          str2);
     }    
 }

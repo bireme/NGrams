@@ -22,6 +22,7 @@
 package br.bireme.ngrams;
 
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  *
@@ -33,7 +34,8 @@ class Parameters {
     final IndexedNGramField indexed;
     final Set<ExactField> exacts;
     final Set<NGramField> ngrams;
-    final Set<Score> scores;
+    final Set<RegExpField> regexps;
+    final TreeSet<Score> scores;
     final Field[] fields;
     final int nfields;
     
@@ -41,19 +43,22 @@ class Parameters {
                final IndexedNGramField indexed,
                final Set<ExactField> exacts,
                final Set<NGramField> ngrams,
-               final Set<Score> scores) {
+               final Set<RegExpField> regexps,
+               final TreeSet<Score> scores) {
         assert id != null;
         assert indexed != null;
         assert exacts != null;
         assert ngrams != null;
+        assert regexps != null;
         assert scores != null;
         
         this.id = id;
         this.indexed = indexed;
         this.exacts = exacts;
         this.ngrams = ngrams;
+        this.regexps = regexps;
         this.scores = scores;        
-        this.nfields = 2 + exacts.size() + ngrams.size();
+        this.nfields = 2 + exacts.size() + ngrams.size() + regexps.size();
         
         fields = new Field[nfields];
         
@@ -76,6 +81,12 @@ class Parameters {
                 throw new IllegalArgumentException("ngram pos >= " + nfields);
             }
             fields[ngram.pos] = ngram;
+        }
+        for (RegExpField regexp : regexps) {
+            if (regexp.pos >= nfields) {
+                throw new IllegalArgumentException("regexp pos >= " + nfields);
+            }
+            fields[regexp.pos] = regexp;
         }
     }
 }
