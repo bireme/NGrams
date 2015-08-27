@@ -132,7 +132,7 @@ public class NGrams {
                         break;
                     }
                     final String ncontent = Tools.limitSize(
-                                    Tools.normalize(content), MAX_NG_TEXT_SIZE);
+                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
                     idxFound = true;
                     doc.add(new TextField(fld.name, ncontent, Field.Store.YES));
                 } else if (fld instanceof IdField) {
@@ -144,7 +144,7 @@ public class NGrams {
                     doc.add(new StoredField(fld.name, content));
                 } else {
                     final String ncontent = Tools.limitSize(
-                                    Tools.normalize(content), MAX_NG_TEXT_SIZE);
+                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StoredField(fld.name, ncontent));
                 }
             }
@@ -219,12 +219,13 @@ public class NGrams {
         final IndexSearcher searcher = instance.getIndexSearcher();
         final NGAnalyzer analyzer = (NGAnalyzer)Instances.getAnalyzer();
         final NGramDistance ngDistance = new NGramDistance(
-                                                       analyzer.getNgramSize());        
+                                                       analyzer.getNgramSize());
+        final Set<String> id_id = new HashSet<>();
         int cur = 0;        
         try (final BufferedReader reader = Files.newBufferedReader(
                                           new File(inFile).toPath(), inCharset);
              final BufferedWriter writer = Files.newBufferedWriter(
-                                      new File(outFile).toPath(), outCharset)) {        
+                                      new File(outFile).toPath(), outCharset)) {            
             writer.append("search_doc_id|similarity|index_doc_id|" +
                           "ngram_search_text|ngram_index_text\n");            
             while (true) {                                
@@ -234,9 +235,9 @@ public class NGrams {
                 }         
                 if (++cur % 1000 == 0) {
                     System.out.println("<<< " + cur);
-                }
+                }                
                 final Set<String> results = searchRaw(indexName, searcher, 
-                                                    analyzer, ngDistance, line);
+                                             analyzer, ngDistance, line, id_id);
                 if (!results.isEmpty()) {
                     writeOutput(results, writer);
                 }                
@@ -258,9 +259,10 @@ public class NGrams {
         final IndexSearcher searcher = instance.getIndexSearcher();
         final NGAnalyzer analyzer = (NGAnalyzer)Instances.getAnalyzer();
         final NGramDistance ngDistance = new NGramDistance(
-                                                       analyzer.getNgramSize());        
+                                                       analyzer.getNgramSize());
+        final Set<String> id_id = new HashSet<>();
         final Set<String> ret = searchRaw(indexName, searcher, analyzer, 
-                                                              ngDistance, text);
+                                                       ngDistance, text, id_id);
         searcher.getIndexReader().close();
         
         return ret;
@@ -271,14 +273,16 @@ public class NGrams {
                                          final IndexSearcher searcher,
                                          final NGAnalyzer analyzer,
                                          final NGramDistance ngDistance,
-                                         final String text) throws IOException, 
-                                                                ParseException {
+                                         final String text,
+                                         final Set<String> id_id) 
+                                            throws IOException, ParseException {
         assert indexName != null;
         assert searcher != null;
         assert analyzer != null;
         assert ngDistance != null;
         assert text != null;
-        
+        assert id_id != null;
+
         final NGInstance instance = Instances.getInstance(indexName);
         final Parameters parameters = instance.getParameters();        
         final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
@@ -286,18 +290,17 @@ public class NGrams {
             throw new IOException(text);
         }
         final Set<String> ret = new TreeSet<>();
-        final String fname = parameters.indexed.name;
+        final String fname = parameters.indexed.name;   
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
-                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
+                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();        
         if (!ntext.isEmpty()) {
             final Query query = parser.parse(QueryParser.escape(ntext));
             final TopDocs top = searcher.search(query, 10);        
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
             ScoreDoc after = null;        
-
-            outer: while (true) {                
+            outer: while (scores.length > 0) {                
                 for (ScoreDoc sdoc : scores) {
                     final Document doc = searcher.doc(sdoc.doc);                
                     final float similarity = 
@@ -305,10 +308,10 @@ public class NGrams {
                     if (similarity < lower) {
                         break outer;
                     }
-                    final String out = createResult(parameters, param, doc, 
-                                                        ngDistance, similarity);
+                    final String out = createResult(id_id, parameters, param, 
+                                                   doc, ngDistance, similarity);
                     if (out != null) {                        
-                        //System.out.println(out);
+                        //System.out.println("##### " + out + "\n");
                         ret.add(out);
                     }
                     after = sdoc;
@@ -322,11 +325,13 @@ public class NGrams {
     }
 
     // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
-    private static String createResult(final Parameters parameters,
+    private static String createResult(final Set<String> id_id,
+                                       final Parameters parameters,
                                        final String[] param,
                                        final Document doc,
                                        final NGramDistance ngDistance,
                                        final float similarity) {
+        assert id_id != null;
         assert parameters != null;
         assert param != null;
         assert doc != null;
@@ -351,12 +356,21 @@ public class NGrams {
                 final String stext = Tools.limitSize(Tools.normalize(
                               param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE);
                 final String itext = (String)doc.get(parameters.indexed.name);
-                final StringBuilder builder = new StringBuilder()
-                   .append(param[parameters.id.pos]).append('|')
-                   .append(similarity).append('|')
-                   .append((String)doc.get("id")).append('|')
-                   .append(stext).append('|').append(itext);
-                ret = builder.toString();
+                final String id1 = param[parameters.id.pos];
+                final String id2 = (String)doc.get("id");
+                final String id1id2 = (id1.compareTo(id2) <= 0) ? 
+                                          (id1 + "_" + id2) : (id2 + "_" + id1);
+                if (id_id.contains(id1id2)) {
+                    ret = null;
+                } else {
+                    id_id.add(id1id2);
+                    final StringBuilder builder = new StringBuilder()
+                        .append(id1).append('|')
+                        .append(similarity).append('|')
+                        .append(id2).append('|')
+                        .append(stext).append('|').append(itext);
+                    ret = builder.toString();
+                }                
             } else {
                 ret = null;
             }
@@ -421,9 +435,11 @@ public class NGrams {
             ret = 0;
         } else if (field instanceof IndexedNGramField) {
             ret = 0;
+        } else if (field instanceof NoCompareField) {
+            ret = 0;            
         } else if (field instanceof NGramField) {
             final String nfld = Tools.limitSize(Tools.normalize(fld), 
-                                                              MAX_NG_TEXT_SIZE);
+                                                       MAX_NG_TEXT_SIZE).trim();
             final String text = (String)doc.get(field.name);
             final int val = compareFields(field, nfld, text);
             if ((val == -1) || (val == 1)) {
@@ -434,10 +450,12 @@ public class NGrams {
                                                  : field.optionalMatch ? 0 : -1;
             }
         } else if (field instanceof RegExpField) {
-            ret = compareRegExpFields(field, fld, doc);          
+            final String nfld = Tools.limitSize(Tools.normalize(fld), 
+                                                       MAX_NG_TEXT_SIZE).trim();
+            ret = compareRegExpFields(field, nfld, doc);          
         } else { // ExactField
             final String nfld = Tools.limitSize(Tools.normalize(fld), 
-                                                              MAX_NG_TEXT_SIZE);
+                                                       MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
         }        

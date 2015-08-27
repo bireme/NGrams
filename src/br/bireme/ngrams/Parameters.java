@@ -35,6 +35,7 @@ class Parameters {
     final Set<ExactField> exacts;
     final Set<NGramField> ngrams;
     final Set<RegExpField> regexps;
+    final Set<NoCompareField> nocompare;
     final TreeSet<Score> scores;
     final Field[] fields;
     final int nfields;
@@ -44,12 +45,14 @@ class Parameters {
                final Set<ExactField> exacts,
                final Set<NGramField> ngrams,
                final Set<RegExpField> regexps,
+               final Set<NoCompareField> nocompare,
                final TreeSet<Score> scores) {
         assert id != null;
         assert indexed != null;
         assert exacts != null;
         assert ngrams != null;
         assert regexps != null;
+        assert nocompare != null;
         assert scores != null;
         
         this.id = id;
@@ -57,8 +60,10 @@ class Parameters {
         this.exacts = exacts;
         this.ngrams = ngrams;
         this.regexps = regexps;
+        this.nocompare = nocompare;
         this.scores = scores;        
-        this.nfields = 2 + exacts.size() + ngrams.size() + regexps.size();
+        this.nfields = 2 + exacts.size() + ngrams.size() + regexps.size() 
+                                                             + nocompare.size();
         
         fields = new Field[nfields];
         
@@ -87,6 +92,12 @@ class Parameters {
                 throw new IllegalArgumentException("regexp pos >= " + nfields);
             }
             fields[regexp.pos] = regexp;
+        }
+        for (NoCompareField nocomp : nocompare) {
+            if (nocomp.pos >= nfields) {
+                throw new IllegalArgumentException("nocomp pos >= " + nfields);
+            }
+            fields[nocomp.pos] = nocomp;
         }
     }
 }

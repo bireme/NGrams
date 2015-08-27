@@ -91,6 +91,13 @@ class IdField extends Field {
     }
 }
 
+class NoCompareField extends Field {
+    NoCompareField(final String name,
+                   final int pos) {
+        super(name, pos, false, false, -1);
+    }
+}
+
 class ExactField extends Field {
     ExactField(final String name,
                final int pos) {

@@ -50,6 +50,7 @@ import org.xml.sax.SAXException;
  *      <exactField pos="4" name="ano" status="required" match="optional"/>
  *      <exactField pos="5" name="pais" status="optional" requiredField="2"/>
  *      <regExpField pos="7" name="paginas" status="optional" requiredField="2" pattern="(\d+)" groupNum="1"/>
+ *      <noCompField pos="8" name="base de dados"/>
  *  </config>
 
  * @author Heitor Barbieri
@@ -86,10 +87,13 @@ class ParameterParser {
         final NodeList nRegExpList = doc.getElementsByTagName("regExpField");
         final Set<RegExpField> regexp = parseRegExpFields(nRegExpList); 
         
+        final NodeList nNoCompareList = doc.getElementsByTagName("noCompField");
+        final Set<NoCompareField> nocomp = parseNoCompareFields(nNoCompareList);
+        
         final NodeList nScoreList = doc.getElementsByTagName("score");
         final TreeSet<Score> scrs = parseScores(nScoreList);
                         
-        return new Parameters(id, idxNGram, exact, ngram, regexp, scrs);
+        return new Parameters(id, idxNGram, exact, ngram, regexp, nocomp, scrs);
     }
        
     static IdField parseIdField(final NodeList nIdList) throws IOException {
@@ -275,6 +279,33 @@ class ParameterParser {
             exactSet.add(def);
         }
         return exactSet;
+    }
+    
+    static Set<NoCompareField> parseNoCompareFields(final NodeList nCompList) 
+                                                            throws IOException {
+        assert nCompList != null;
+        
+        final Set<NoCompareField> noCompareSet = new HashSet<>();
+        for (int idx = 0; idx < nCompList.getLength(); idx++) { 
+            final Node nNode = nCompList.item(idx);
+            
+            if (nNode.getNodeType() != Node.ELEMENT_NODE) {
+                throw new IOException("'field' is not an Element node");
+            }
+            final Element eElement = (Element) nNode;            
+            final String name = eElement.getAttribute("name");
+            if (name == null) {
+                throw new IOException("missing 'name' attribute");
+            }
+            final String pos = eElement.getAttribute("pos");
+            if (pos == null) {
+                throw new IOException("missing 'pos' attribute");
+            }
+            final NoCompareField def = new NoCompareField(name, 
+                                                         Integer.parseInt(pos));
+            noCompareSet.add(def);
+        }
+        return noCompareSet;
     }
     
     static TreeSet<Score> parseScores(final NodeList nScoreList) 
