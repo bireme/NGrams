@@ -31,22 +31,31 @@ import java.util.regex.Pattern;
  * date: 20150707
  */
 
-class Field {    
-    final String name;           // field's name
-    final boolean optional;      // is field optional or required
-    final boolean optionalMatch; // this field has to be equal to the indexed one
-    final int requiredField;     // position of another field which is required by this field or -1 if not
-    final int pos;               // position inside line A|B|C|D|...|H
+class Field {
+    public enum Status { REQUIRED,  // the field presence is required
+                         OPTIONAL,  // the field can be missing
+                         MAX_SCORE  // if the field is missing then 
+                                    // minimum score will be 1.0 
+                                    // instead of minScore.
+                       }
+    
+    final String name;         // field's name
+    final Status presence;     // tells if the field presence is 'required', 'optional' or 'optional requiring max score'
+    final Set<String> content; // contents that require max score if this field is/is_not equals to 
+    final Status contentMatch; // this field has to be equal to the indexed one
+    final int requiredField;   // position of another field which is required by this field or -1 if not
+    final int pos;             // position inside line A|B|C|D|...|H
 
     Field(final String name,
           final int pos) {
-        this(name, pos, true, true, -1);
+        this(name, pos, Status.OPTIONAL, null, Status.OPTIONAL, -1);
     }
     
     Field(final String name,
           final int pos,
-          final boolean optional,
-          final boolean optionalMatch,
+          final Status presence,
+          final Set<String> content,
+          final Status contentMatch,
           final int requiredField) {
         if (name == null) {
             throw new NullPointerException("name");
@@ -58,8 +67,10 @@ class Field {
             throw new IllegalArgumentException("requiredField");
         }
         this.name = name;        
-        this.optional = optional;
-        this.optionalMatch = optionalMatch;
+        this.presence = (presence == null) ? Status.OPTIONAL : presence;
+        this.content = content;
+        this.contentMatch = (contentMatch == null) ? Status.OPTIONAL 
+                                                   : contentMatch;
         this.requiredField = requiredField;
         this.pos = pos;
     }
@@ -87,28 +98,30 @@ class Field {
 
 class IdField extends Field {
     IdField(final int pos) {
-        super("id", pos, false, false, -1);
+        super("id", pos, Status.REQUIRED, null, Status.OPTIONAL, -1);
     }
 }
 
 class NoCompareField extends Field {
     NoCompareField(final String name,
                    final int pos) {
-        super(name, pos, false, false, -1);
+        super(name, pos, Status.OPTIONAL, null, Status.OPTIONAL, -1);
     }
 }
 
 class ExactField extends Field {
     ExactField(final String name,
+               final Set<String> content,
                final int pos) {
-        this(name, pos, true, true, -1);
+        this(name, pos, Status.OPTIONAL, content, Status.OPTIONAL, -1);
     }
     ExactField(final String name,
                final int pos,
-               final boolean optional,
-               final boolean optionalMatch,
+               final Status presence,
+               final Set<String> content,
+               final Status contentMatch,
                final int requiredField) {
-        super(name, pos, optional, optionalMatch, requiredField);
+        super(name, pos, presence, content, contentMatch, requiredField);
     }
 }
 
@@ -118,18 +131,22 @@ class RegExpField extends Field {
     
     RegExpField(final String name,
                 final int pos,
+                final Set<String> content,
+                final Status contentMatch,
                 final String regularExpression,
                 final int groupNumber) {
-        this(name, pos, true, true, -1, regularExpression,groupNumber);
+        this(name, pos, Status.OPTIONAL, content, contentMatch, -1, 
+                                                regularExpression, groupNumber);
     }
     RegExpField(final String name,
                 final int pos,
-                final boolean optional,
-                final boolean optionalMatch,
+                final Status presence,
+                final Set<String> content,
+                final Status contentMatch,
                 final int requiredField,
                 final String pattern,
                 final int groupNumber) {
-        super(name, pos, optional, optionalMatch, requiredField);
+        super(name, pos, presence, content, contentMatch, requiredField);
         if (pattern == null) {
             throw new NullPointerException("pattern");
         }
@@ -143,23 +160,16 @@ class RegExpField extends Field {
 
 class IndexedNGramField extends Field {
     final float minScore;
-    final Set<Integer> missingFields; // if missing field here then minimum
-                                      // score will be 1.0 instead minScore.
                                               
     IndexedNGramField(final String name,
                       final int pos,
-                      final float minScore,
-                      final Set<Integer> missingFields) {
-        super(name, pos, false, false, -1);
+                      final float minScore) {
+        super(name, pos, Status.REQUIRED, null, Status.OPTIONAL, -1);
         if ((minScore < 0) || (minScore > 1)) {
             throw new IllegalArgumentException("minScore: " + minScore 
                                                                     + " [0,1]");
         }
-        if (missingFields == null) {
-            throw new NullPointerException("missingFields");
-        }
         this.minScore = minScore;
-        this.missingFields = missingFields;
     }
 }
 
@@ -168,18 +178,20 @@ class NGramField extends Field {
     
     NGramField(final String name,
                final int pos,
-               final boolean optional,
-               final boolean optionalMatch,
+               final Status presence,
+               final Set<String> content,
+               final Status contentMatch,
                final float minScore) {
-        this(name, pos, optional, optionalMatch, -1, minScore);
+        this(name, pos, presence, content, contentMatch, -1, minScore);
     }
     NGramField(final String name,
                final int pos,
-               final boolean optional,
-               final boolean optionalMatch,
+               final Status presence,
+               final Set<String> content,
+               final Status contentMatch,
                final int requiredField,
                final float minScore) {
-        super(name, pos, optional, optionalMatch, requiredField);
+        super(name, pos, presence, content, contentMatch, requiredField);
         if ((minScore < 0) || (minScore > 1)) {
             throw new IllegalArgumentException("minScore: " + minScore 
                                                                     + " [0,1]");

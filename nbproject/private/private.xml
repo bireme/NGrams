@@ -6,10 +6,12 @@
             <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/NGInstance.java</file>
             <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/Field.java</file>
             <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/Parameters.java</file>
+            <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/NGDistance.java</file>
             <file>file:/home/heitor/Projetos/NGrams/config.cfg</file>
-            <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/NGrams.java</file>
             <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/Tools.java</file>
             <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/ParameterParser.java</file>
+            <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/NGrams.java</file>
+            <file>file:/home/heitor/Projetos/NGrams/src/br/bireme/ngrams/CompareFiles.java</file>
         </group>
     </open-files>
 </project-private>

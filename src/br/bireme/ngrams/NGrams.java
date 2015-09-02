@@ -21,6 +21,7 @@
 
 package br.bireme.ngrams;
 
+import br.bireme.ngrams.Field.Status;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -58,7 +59,7 @@ public class NGrams {
     /*
        Maximum ngram text size. If longer then it, it will be truncated.
     */
-    public static final int MAX_NG_TEXT_SIZE = 100;
+    public static final int MAX_NG_TEXT_SIZE = 80;
     
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final String indexName,
@@ -185,7 +186,7 @@ public class NGrams {
             final br.bireme.ngrams.Field field = parameters.fields[pos];
             
             checked.add(pos);
-            ok = (param[pos].isEmpty()) ? field.optional
+            ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
                          : checkPresence(field.requiredField, parameters, param, 
                                                                        checked);            
         }
@@ -389,16 +390,13 @@ public class NGrams {
         assert similarity >= 0;
         assert matchedFields > 0;
         
-        boolean hasMissing = false;
-        for (int pos : parameters.indexed.missingFields) {
-            if (param[pos].isEmpty()) {
-                hasMissing = true;
-                break;
-            }
-        }
+        boolean maxScore = isMaxScore(parameters.exacts, param) ||
+                           isMaxScore(parameters.ngrams, param) ||
+                           isMaxScore(parameters.regexps, param);
+        
         Score score = null;
         for (Score score1 : parameters.scores) {
-            final float minValue = hasMissing ? 1 : score1.minValue;
+            final float minValue = maxScore ? 1 : score1.minValue;
             if (similarity >= minValue) {
                 score = score1;
             } else {
@@ -407,6 +405,37 @@ public class NGrams {
         }
         
         return (score != null) && (matchedFields >= score.minFields);
+    }
+    
+    private static boolean isMaxScore(
+                             final Set<? extends br.bireme.ngrams.Field> fields,
+                             final String[] param) {
+        assert fields != null;
+        assert param != null;
+        
+        boolean maxScore = false;
+
+        for (br.bireme.ngrams.Field field : fields) {
+            if ((field.presence == Status.MAX_SCORE) &&
+                (param[field.pos].isEmpty())) {
+                maxScore = true;
+                break;
+            }
+            if (field.content != null) {
+                boolean found = false;
+                for (String str: field.content) {
+                    if (str.equals(param[field.pos])) {
+                        found = true;
+                        break;
+                    }
+                }
+                maxScore = !found;
+                if (maxScore) {
+                    break;
+                }
+            }
+        }
+        return maxScore;
     }
     
     /**
@@ -431,34 +460,51 @@ public class NGrams {
         
         final int ret;
         
-        if (field instanceof IdField) {
-            ret = 0;
-        } else if (field instanceof IndexedNGramField) {
-            ret = 0;
-        } else if (field instanceof NoCompareField) {
-            ret = 0;            
-        } else if (field instanceof NGramField) {
+        if (field instanceof NGramField) {
             final String nfld = Tools.limitSize(Tools.normalize(fld), 
                                                        MAX_NG_TEXT_SIZE).trim();
-            final String text = (String)doc.get(field.name);
-            final int val = compareFields(field, nfld, text);
-            if ((val == -1) || (val == 1)) {
-                ret = val;
-            } else {
-                final float similarity = ngDistance.getDistance(nfld, text);
-                ret = (similarity >= ((NGramField)field).minScore) ? 1
-                                                 : field.optionalMatch ? 0 : -1;
-            }
+            ret = compareNGramFields(ngDistance, field, nfld, doc);
         } else if (field instanceof RegExpField) {
             final String nfld = Tools.limitSize(Tools.normalize(fld), 
                                                        MAX_NG_TEXT_SIZE).trim();
             ret = compareRegExpFields(field, nfld, doc);          
-        } else { // ExactField
+        } else if (field instanceof ExactField) {
             final String nfld = Tools.limitSize(Tools.normalize(fld), 
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
-        }        
+        } else {
+            ret = 0;
+        }
+        
+        return ret;
+    }
+    
+    private static int compareNGramFields(final NGramDistance ngDistance,
+                                          final br.bireme.ngrams.Field field,
+                                          final String fld,
+                                          final Document doc) {
+        assert ngDistance != null;
+        assert field != null;
+        assert fld != null;
+        assert doc != null;
+        
+        final int ret;
+        final String text = (String)doc.get(field.name);
+        
+        if (fld.isEmpty()) {
+            if (field.presence == Status.REQUIRED) {    
+                ret = -1;
+            } else {
+                ret = text.isEmpty() ? 0 : -1;
+            }
+        } else if (fld.equals(text)) {
+            ret = 1;
+        } else {
+            final float similarity = ngDistance.getDistance(fld, text);
+            ret = (similarity >= ((NGramField)field).minScore) ? 1
+                           : field.contentMatch != Status.OPTIONAL ? 0 : -1;
+        }
         return ret;
     }
     
@@ -469,8 +515,6 @@ public class NGrams {
         assert fld != null;
         assert doc != null;
         
-        final String nfld = Tools.limitSize(Tools.normalize(fld), 
-                                                              MAX_NG_TEXT_SIZE);
         final String idxText = (String)doc.get(field.name);
         final RegExpField regExp = (RegExpField)field;
         final Matcher mat = regExp.matcher;
@@ -480,22 +524,22 @@ public class NGrams {
         if (mat.find()) {
             final String content1 = mat.group(regExp.groupNum);
             if (content1 == null) {
-                ret = compareFields(field, nfld, idxText);
+                ret = compareFields(field, fld, idxText);
             } else {
-                mat.reset(nfld);
+                mat.reset(fld);
                 if (mat.find()) {
                     final String content2 = mat.group(regExp.groupNum);
                     if (content2 == null) {
-                        ret = compareFields(field, nfld, idxText);
+                        ret = compareFields(field, fld, idxText);
                     } else {
                         ret = compareFields(field, content1, content2);
                     }    
                 } else {
-                    ret = compareFields(field, nfld, idxText);
+                    ret = compareFields(field, fld, idxText);
                 }
             }
         } else {
-            ret = compareFields(field, nfld, idxText);
+            ret = compareFields(field, fld, idxText);
         }
         return ret;
     }
@@ -516,11 +560,10 @@ public class NGrams {
         assert fld != null;
         assert idxText != null;
         
-        return fld.isEmpty() ? (field.optional ? 0 : -1)
-                             : (fld.equals(idxText) ? 1 
-                                         : (field instanceof NGramField) 
-                                              ? 0
-                                              : (field.optionalMatch ? 0 : -1));
+        return fld.isEmpty() ? ((field.presence == Status.REQUIRED) ? -1 : 0)
+                             : (fld.equals(idxText) ? 1                                 
+                                : (field.contentMatch == Status.REQUIRED ? -1 
+                                                                         : 0));
     }
 
     private static void writeOutput(final Set<String> results,
