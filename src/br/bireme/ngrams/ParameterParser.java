@@ -110,8 +110,11 @@ class ParameterParser {
             throw new IOException("'idfield' is not an Element node");
         }
         final Element eElement = (Element) nNode;
-        final IdField id = new IdField(
-                                Integer.parseInt(eElement.getAttribute("pos")));
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
+            throw new IOException("missing 'pos' attribute");
+        }
+        final IdField id = new IdField(Integer.parseInt(pos));
         return id;
     }
     
@@ -128,16 +131,16 @@ class ParameterParser {
             throw new IOException("'IdxNGramField' is not an Element node");
         }
         final Element eElement = (Element) nNode;
-        final String name = eElement.getAttribute("name");
-        if (name == null) {
+        final String name = eElement.getAttribute("name").trim();
+        if (name.isEmpty()) {
             throw new IOException("missing 'name' attribute");
         }
-        final String pos = eElement.getAttribute("pos");
-        if (pos == null) {
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
             throw new IOException("missing 'pos' attribute");
         }
-        final String minScore = eElement.getAttribute("minScore");
-        if (minScore == null) {
+        final String minScore = eElement.getAttribute("minScore").trim();
+        if (minScore.isEmpty()) {
             throw new IOException("missing 'minScore' attribute");
         }
         final IndexedNGramField idxNGram = new IndexedNGramField(
@@ -159,17 +162,17 @@ class ParameterParser {
                 throw new IOException("'NGramField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
-            final String name = eElement.getAttribute("name");
-            if (name == null) {
+            final String name = eElement.getAttribute("name").trim();
+            if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String pos = eElement.getAttribute("pos");
-            if (pos == null) {
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
                 throw new IOException("missing 'pos' attribute");
             }
             final Status status;
-            final String statusStr = eElement.getAttribute("status");
-            if ((statusStr == null) || (statusStr.trim().isEmpty())) {
+            final String statusStr = eElement.getAttribute("status").trim();
+            if (statusStr.isEmpty()) {
                 status = Status.OPTIONAL;
             } else {
                 if ((!statusStr.equals("OPTIONAL")) &&
@@ -182,8 +185,8 @@ class ParameterParser {
             }          
             final Status match;
             final Set<String> content;
-            final String matchStr = eElement.getAttribute("match");
-            if ((matchStr == null) || (matchStr.trim().isEmpty())) {
+            final String matchStr = eElement.getAttribute("match").trim();
+            if (matchStr.isEmpty()) {
                 match = null;
                 content = null;
             } else {
@@ -195,7 +198,8 @@ class ParameterParser {
                 }
                 match = Status.valueOf(matchStr);
                 if (match.equals(Status.MAX_SCORE)) {
-                    final String contentStr = eElement.getAttribute("values");
+                    final String contentStr = eElement.getAttribute("values")
+                                                                        .trim();
                     if (contentStr == null) {
                         throw new IOException("missing 'value' attribute");
                     } 
@@ -205,9 +209,10 @@ class ParameterParser {
                     content = null;
                 }
             }
-            final String requiredField = eElement.getAttribute("requiredField");            
-            final String minScore = eElement.getAttribute("minScore");
-            if (minScore == null) {
+            final String requiredField = eElement.getAttribute("requiredField")
+                                                                        .trim();            
+            final String minScore = eElement.getAttribute("minScore").trim();
+            if (minScore.isEmpty()) {
                 throw new IOException("missing 'minScore' attribute");
             }
             
@@ -217,9 +222,8 @@ class ParameterParser {
                   status,
                   content,
                   match,
-                  ((requiredField == null)||(requiredField.trim().isEmpty())) 
-                                             ? -1 
-                                             : Integer.parseInt(requiredField),
+                  (requiredField.isEmpty()) ? -1 
+                                            : Integer.parseInt(requiredField),
                   Float.parseFloat(minScore));
             ngramSet.add(nGram);
         }
@@ -238,17 +242,17 @@ class ParameterParser {
                 throw new IOException("'NGramField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
-            final String name = eElement.getAttribute("name");
-            if (name == null) {
+            final String name = eElement.getAttribute("name").trim();
+            if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String pos = eElement.getAttribute("pos");
-            if (pos == null) {
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
                 throw new IOException("missing 'pos' attribute");
             }
             final Status status;
-            final String statusStr = eElement.getAttribute("status");
-            if ((statusStr == null) || (statusStr.trim().isEmpty())) {
+            final String statusStr = eElement.getAttribute("status").trim();
+            if (statusStr.isEmpty()) {
                 status = Status.OPTIONAL;
             } else {
                 if ((!statusStr.equals("OPTIONAL")) &&
@@ -261,8 +265,8 @@ class ParameterParser {
             }
             final Status match;
             final Set<String> content;
-            final String matchStr = eElement.getAttribute("match");
-            if ((matchStr == null) || (matchStr.trim().isEmpty())) {
+            final String matchStr = eElement.getAttribute("match").trim();
+            if (matchStr.isEmpty()) {
                 match = null;
                 content = null;
             } else {
@@ -274,8 +278,9 @@ class ParameterParser {
                 }
                 match = Status.valueOf(matchStr);
                 if (match.equals(Status.MAX_SCORE)) {
-                    final String contentStr = eElement.getAttribute("values");
-                    if (contentStr == null) {
+                    final String contentStr = eElement.getAttribute("values")
+                                                                        .trim();
+                    if (contentStr.isEmpty()) {
                         throw new IOException("missing 'value' attribute");
                     } 
                     final String[] split = contentStr.split(" *, *");
@@ -284,17 +289,14 @@ class ParameterParser {
                     content = null;
                 }
             }
-            final String requiredField = eElement.getAttribute("requiredField");            
-            final String minScore = eElement.getAttribute("minScore");
-            if (minScore == null) {
-                throw new IOException("missing 'minScore' attribute");
-            }
-            final String pattern = eElement.getAttribute("pattern");
-            if (pattern == null) {
+            final String requiredField = eElement.getAttribute("requiredField")
+                                                                        .trim();            
+            final String pattern = eElement.getAttribute("pattern").trim();
+            if (pattern.isEmpty()) {
                 throw new IOException("missing 'pattern' attribute");
             }
-            final String sgroupNum = eElement.getAttribute("groupNum");
-            if (sgroupNum == null) {
+            final String sgroupNum = eElement.getAttribute("groupNum").trim();
+            if (sgroupNum.isEmpty()) {
                 throw new IOException("missing 'groupNum' attribute");
             }            
             final RegExpField regexpf = new RegExpField(
@@ -303,7 +305,7 @@ class ParameterParser {
                   status,
                   content,
                   match,
-                  ((requiredField == null)||(requiredField.trim().isEmpty())) 
+                  (requiredField.trim().isEmpty())
                                              ? -1 
                                              : Integer.parseInt(requiredField),
                   pattern,
@@ -325,17 +327,17 @@ class ParameterParser {
                 throw new IOException("'field' is not an Element node");
             }
             final Element eElement = (Element) nNode;            
-            final String name = eElement.getAttribute("name");
-            if (name == null) {
+            final String name = eElement.getAttribute("name").trim();
+            if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String pos = eElement.getAttribute("pos");
-            if (pos == null) {
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
                 throw new IOException("missing 'pos' attribute");
             }
             final Status status;
-            final String statusStr = eElement.getAttribute("status");
-            if ((statusStr == null) || (statusStr.trim().isEmpty())) {
+            final String statusStr = eElement.getAttribute("status").trim();
+            if (statusStr.isEmpty()) {
                 status = Status.OPTIONAL;
             } else {
                 if ((!statusStr.equals("OPTIONAL")) &&
@@ -348,8 +350,8 @@ class ParameterParser {
             }
             final Status match;
             final Set<String> content;
-            final String matchStr = eElement.getAttribute("match");
-            if ((matchStr == null) || (matchStr.trim().isEmpty())) {
+            final String matchStr = eElement.getAttribute("match").trim();
+            if (matchStr.isEmpty()) {
                 match = null;
                 content = null;
             } else {
@@ -361,8 +363,9 @@ class ParameterParser {
                 }
                 match = Status.valueOf(matchStr);
                 if (match.equals(Status.MAX_SCORE)) {
-                    final String contentStr = eElement.getAttribute("values");
-                    if (contentStr == null) {
+                    final String contentStr = eElement.getAttribute("values")
+                                                                        .trim();
+                    if (contentStr.isEmpty()) {
                         throw new IOException("missing 'value' attribute");
                     } 
                     final String[] split = contentStr.split(" *, *");
@@ -371,14 +374,15 @@ class ParameterParser {
                     content = null;
                 }
             }
-            final String requiredField = eElement.getAttribute("requiredField");
+            final String requiredField = eElement.getAttribute("requiredField")
+                                                                        .trim();
             final ExactField def = new ExactField(
                   name,
                   Integer.parseInt(pos),
                   status,
                   content,
                   match,
-                  ((requiredField == null)||(requiredField.trim().isEmpty())) 
+                  (requiredField.trim().isEmpty())
                                              ? -1 
                                              : Integer.parseInt(requiredField));
             exactSet.add(def);
@@ -398,12 +402,12 @@ class ParameterParser {
                 throw new IOException("'field' is not an Element node");
             }
             final Element eElement = (Element) nNode;            
-            final String name = eElement.getAttribute("name");
-            if (name == null) {
+            final String name = eElement.getAttribute("name").trim();
+            if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String pos = eElement.getAttribute("pos");
-            if (pos == null) {
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
                 throw new IOException("missing 'pos' attribute");
             }
             final NoCompareField def = new NoCompareField(name, 
@@ -430,8 +434,8 @@ class ParameterParser {
             }
             final Element eElement = (Element) nNode;
             final Score score = new Score(
-                          Float.parseFloat(eElement.getAttribute("minValue")),
-                          Integer.parseInt(eElement.getAttribute("minFields")));
+                    Float.parseFloat(eElement.getAttribute("minValue").trim()),
+                    Integer.parseInt(eElement.getAttribute("minFields").trim()));
             scoreSet.add(score);
         }
         

@@ -50,17 +50,17 @@ import org.xml.sax.SAXException;
 
 /**
  * Lê um arquivo de entrada e indexada cada entrada usando ngrams ou procura
- * cada item em um índice previamente preparado. Veja formatos de entrada e 
+ * cada item em um índice previamente preparado. Veja formatos de entrada e
  * saída na função usage().
  * @author Heitor Barbieri
  * date: 20150624
  */
-public class NGrams {            
+public class NGrams {
     /*
        Maximum ngram text size. If longer then it, it will be truncated.
     */
     public static final int MAX_NG_TEXT_SIZE = 80;
-    
+
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final String indexName,
                              final String inFile,
@@ -74,18 +74,18 @@ public class NGrams {
         if (inFileEncoding == null) {
             throw new NullPointerException("inFileEncoding");
         }
-        
+
         final Charset charset = Charset.forName(inFileEncoding);
         final NGInstance instance = Instances.getInstance(indexName);
         final IndexWriter writer = instance.getIndexWriter();
         final Parameters parameters = instance.getParameters();
         final br.bireme.ngrams.Field[] flds = parameters.fields;
         int cur = 0;
-        
+
         try (BufferedReader reader = Files.newBufferedReader(
-                                          new File(inFile).toPath(), charset)) {                     
+                                          new File(inFile).toPath(), charset)) {
             writer.deleteAll();
-            
+
             while (true) {
                 final String line = reader.readLine();
                 if (line == null) {
@@ -108,21 +108,21 @@ public class NGrams {
             writer.close();
         }
     }
-    
+
     private static Document createDocument(final br.bireme.ngrams.Field[] fields,
                                            final String[] flds,
-                                           final Parameters parameters) 
+                                           final Parameters parameters)
                                                             throws IOException {
         assert fields != null;
         assert flds != null;
         assert parameters != null;
-        
+
         Document doc = checkFieldsPresence(parameters, flds) ? new Document()
                                                              : null;
         boolean idFound = false;
         boolean idxFound = false;
-             
-        if (doc != null) {            
+
+        if (doc != null) {
             for (int idx = 0; idx < parameters.nfields; idx++) {
                 final String content = flds[idx];
                 final br.bireme.ngrams.Field fld = fields[idx];
@@ -157,9 +157,9 @@ public class NGrams {
                                                final String[] param) {
         assert parameters != null;
         assert param != null;
-        
+
         boolean ok = true;
-        
+
         for (int idx = 0; idx < param.length; idx++) {
             ok = checkPresence(idx, parameters, param, new HashSet<Integer>());
             if (!ok) {
@@ -168,7 +168,7 @@ public class NGrams {
         }
         return ok;
     }
-    
+
     private static boolean checkPresence(final int pos,
                                          final Parameters parameters,
                                          final String[] param,
@@ -177,27 +177,27 @@ public class NGrams {
         assert parameters != null;
         assert param != null;
         assert checked != null;
-                
+
         final boolean ok;
-        
-        if ((pos == -1) || (checked.contains(pos))) { 
-            ok = true; 
+
+        if ((pos == -1) || (checked.contains(pos))) {
+            ok = true;
         } else {
             final br.bireme.ngrams.Field field = parameters.fields[pos];
-            
+
             checked.add(pos);
             ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
-                         : checkPresence(field.requiredField, parameters, param, 
-                                                                       checked);            
+                         : checkPresence(field.requiredField, parameters, param,
+                                                                       checked);
         }
         return ok;
     }
-    
+
     public static void search(final String indexName,
                               final String inFile,
                               final String inFileEncoding,
                               final String outFile,
-                              final String outFileEncoding) throws IOException, 
+                              final String outFileEncoding) throws IOException,
                                                                 ParseException {
         if (indexName == null) {
             throw new NullPointerException("indexName");
@@ -213,7 +213,7 @@ public class NGrams {
         }
         if (outFileEncoding == null) {
             throw new NullPointerException("outFileEncoding");
-        }        
+        }
         final Charset inCharset = Charset.forName(inFileEncoding);
         final Charset outCharset = Charset.forName(outFileEncoding);
         final NGInstance instance = Instances.getInstance(indexName);
@@ -222,33 +222,33 @@ public class NGrams {
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
-        int cur = 0;        
+        int cur = 0;
         try (final BufferedReader reader = Files.newBufferedReader(
                                           new File(inFile).toPath(), inCharset);
              final BufferedWriter writer = Files.newBufferedWriter(
-                                      new File(outFile).toPath(), outCharset)) {            
+                                      new File(outFile).toPath(), outCharset)) {
             writer.append("search_doc_id|similarity|index_doc_id|" +
-                          "ngram_search_text|ngram_index_text\n");            
-            while (true) {                                
+                          "ngram_search_text|ngram_index_text\n");
+            while (true) {
                 final String line = reader.readLine();
                 if (line == null) {
                     break;
-                }         
+                }
                 if (++cur % 1000 == 0) {
                     System.out.println("<<< " + cur);
-                }                
-                final Set<String> results = searchRaw(indexName, searcher, 
+                }
+                final Set<String> results = searchRaw(indexName, searcher,
                                              analyzer, ngDistance, line, id_id);
                 if (!results.isEmpty()) {
                     writeOutput(results, writer);
-                }                
+                }
             }
             searcher.getIndexReader().close();
         }
     }
-    
+
     public static Set<String> search(final String indexName,
-                                     final String text) throws IOException, 
+                                     final String text) throws IOException,
                                                                 ParseException {
         if (indexName == null) {
             throw new NullPointerException("indexName");
@@ -262,20 +262,20 @@ public class NGrams {
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
-        final Set<String> ret = searchRaw(indexName, searcher, analyzer, 
+        final Set<String> ret = searchRaw(indexName, searcher, analyzer,
                                                        ngDistance, text, id_id);
         searcher.getIndexReader().close();
-        
+
         return ret;
     }
-    
+
     // <id>|<ngram search text>|<content>|...|<content>
     private static Set<String> searchRaw(final String indexName,
                                          final IndexSearcher searcher,
                                          final NGAnalyzer analyzer,
                                          final NGramDistance ngDistance,
                                          final String text,
-                                         final Set<String> id_id) 
+                                         final Set<String> id_id)
                                             throws IOException, ParseException {
         assert indexName != null;
         assert searcher != null;
@@ -285,33 +285,33 @@ public class NGrams {
         assert id_id != null;
 
         final NGInstance instance = Instances.getInstance(indexName);
-        final Parameters parameters = instance.getParameters();        
+        final Parameters parameters = instance.getParameters();
         final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
         if (param.length != parameters.nfields) {
             throw new IOException(text);
         }
         final Set<String> ret = new TreeSet<>();
-        final String fname = parameters.indexed.name;   
+        final String fname = parameters.indexed.name;
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
-                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();        
+                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
         if (!ntext.isEmpty()) {
             final Query query = parser.parse(QueryParser.escape(ntext));
-            final TopDocs top = searcher.search(query, 10);        
+            final TopDocs top = searcher.search(query, 10);
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
-            ScoreDoc after = null;        
-            outer: while (scores.length > 0) {                
+            ScoreDoc after = null;
+            outer: while (scores.length > 0) {
                 for (ScoreDoc sdoc : scores) {
-                    final Document doc = searcher.doc(sdoc.doc);                
-                    final float similarity = 
+                    final Document doc = searcher.doc(sdoc.doc);
+                    final float similarity =
                                   ngDistance.getDistance(ntext, doc.get(fname));
                     if (similarity < lower) {
                         break outer;
                     }
-                    final String out = createResult(id_id, parameters, param, 
+                    final String out = createResult(id_id, parameters, param,
                                                    doc, ngDistance, similarity);
-                    if (out != null) {                        
+                    if (out != null) {
                         //System.out.println("##### " + out + "\n");
                         ret.add(out);
                     }
@@ -338,20 +338,20 @@ public class NGrams {
         assert doc != null;
         assert ngDistance != null;
         assert similarity >= 0;
-        
+
         final String ret;
         final br.bireme.ngrams.Field[] fields = parameters.fields;
         int matchedFields = 0;
-        
+
         for (int pos = 0; pos < param.length; pos++) {
-            final int val = 
+            final int val =
                       checkField(ngDistance, fields[pos], param[pos], doc);
             if (val == -1) {
                 matchedFields = -1;
                 break; // skip this document because it does not follow requests
             }
             matchedFields += val;
-        }        
+        }
         if (matchedFields > 0) {
             if (checkScore(parameters, param, similarity, matchedFields)) {
                 final String stext = Tools.limitSize(Tools.normalize(
@@ -359,7 +359,7 @@ public class NGrams {
                 final String itext = (String)doc.get(parameters.indexed.name);
                 final String id1 = param[parameters.id.pos];
                 final String id2 = (String)doc.get("id");
-                final String id1id2 = (id1.compareTo(id2) <= 0) ? 
+                final String id1id2 = (id1.compareTo(id2) <= 0) ?
                                           (id1 + "_" + id2) : (id2 + "_" + id1);
                 if (id_id.contains(id1id2)) {
                     ret = null;
@@ -371,16 +371,16 @@ public class NGrams {
                         .append(id2).append('|')
                         .append(stext).append('|').append(itext);
                     ret = builder.toString();
-                }                
+                }
             } else {
                 ret = null;
             }
         } else {
             ret = null;
-        }        
+        }
         return ret;
     }
-    
+
     private static boolean checkScore(final Parameters parameters,
                                       final String[] param,
                                       final float similarity,
@@ -389,11 +389,11 @@ public class NGrams {
         assert param != null;
         assert similarity >= 0;
         assert matchedFields > 0;
-        
+
         boolean maxScore = isMaxScore(parameters.exacts, param) ||
                            isMaxScore(parameters.ngrams, param) ||
                            isMaxScore(parameters.regexps, param);
-        
+
         Score score = null;
         for (Score score1 : parameters.scores) {
             final float minValue = maxScore ? 1 : score1.minValue;
@@ -403,16 +403,16 @@ public class NGrams {
                 break;
             }
         }
-        
+
         return (score != null) && (matchedFields >= score.minFields);
     }
-    
+
     private static boolean isMaxScore(
                              final Set<? extends br.bireme.ngrams.Field> fields,
                              final String[] param) {
         assert fields != null;
         assert param != null;
-        
+
         boolean maxScore = false;
 
         for (br.bireme.ngrams.Field field : fields) {
@@ -437,9 +437,9 @@ public class NGrams {
         }
         return maxScore;
     }
-    
+
     /**
-     * 
+     *
      * @param ngDistance
      * @param field
      * @param fld
@@ -457,29 +457,29 @@ public class NGrams {
         assert field != null;
         assert fld != null;
         assert doc != null;
-        
+
         final int ret;
-        
+
         if (field instanceof NGramField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld), 
+            final String nfld = Tools.limitSize(Tools.normalize(fld),
                                                        MAX_NG_TEXT_SIZE).trim();
             ret = compareNGramFields(ngDistance, field, nfld, doc);
         } else if (field instanceof RegExpField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld), 
+            final String nfld = Tools.limitSize(Tools.normalize(fld),
                                                        MAX_NG_TEXT_SIZE).trim();
-            ret = compareRegExpFields(field, nfld, doc);          
+            ret = compareRegExpFields(field, nfld, doc);
         } else if (field instanceof ExactField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld), 
+            final String nfld = Tools.limitSize(Tools.normalize(fld),
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
         } else {
             ret = 0;
         }
-        
+
         return ret;
     }
-    
+
     private static int compareNGramFields(final NGramDistance ngDistance,
                                           final br.bireme.ngrams.Field field,
                                           final String fld,
@@ -488,12 +488,12 @@ public class NGrams {
         assert field != null;
         assert fld != null;
         assert doc != null;
-        
+
         final int ret;
         final String text = (String)doc.get(field.name);
-        
+
         if (fld.isEmpty()) {
-            if (field.presence == Status.REQUIRED) {    
+            if (field.presence == Status.REQUIRED) {
                 ret = -1;
             } else {
                 ret = text.isEmpty() ? 0 : -1;
@@ -507,19 +507,19 @@ public class NGrams {
         }
         return ret;
     }
-    
+
     private static int compareRegExpFields(final br.bireme.ngrams.Field field,
                                            final String fld,
                                            final Document doc) {
         assert field != null;
         assert fld != null;
         assert doc != null;
-        
+
         final String idxText = (String)doc.get(field.name);
         final RegExpField regExp = (RegExpField)field;
         final Matcher mat = regExp.matcher;
         final int ret;
-        
+
         mat.reset(idxText);
         if (mat.find()) {
             final String content1 = mat.group(regExp.groupNum);
@@ -533,7 +533,7 @@ public class NGrams {
                         ret = compareFields(field, fld, idxText);
                     } else {
                         ret = compareFields(field, content1, content2);
-                    }    
+                    }
                 } else {
                     ret = compareFields(field, fld, idxText);
                 }
@@ -543,9 +543,9 @@ public class NGrams {
         }
         return ret;
     }
-    
+
     /**
-     * 
+     *
      * @param field - configuration of the document
      * @param fld - text used to search
      * @param idxText - txt from index
@@ -559,68 +559,68 @@ public class NGrams {
         assert field != null;
         assert fld != null;
         assert idxText != null;
-        
+
         return fld.isEmpty() ? ((field.presence == Status.REQUIRED) ? -1 : 0)
-                             : (fld.equals(idxText) ? 1                                 
-                                : (field.contentMatch == Status.REQUIRED ? -1 
+                             : (fld.equals(idxText) ? 1
+                                : (field.contentMatch == Status.REQUIRED ? -1
                                                                          : 0));
     }
 
     private static void writeOutput(final Set<String> results,
-                                    final BufferedWriter writer) 
+                                    final BufferedWriter writer)
                                                             throws IOException {
         assert results != null;
         assert writer != null;
-        
+
         boolean first = true;
-        
+
         writer.newLine();
-        
+
         for (String result : results) {
             if (first) {
                 first = false;
             } else {
                 writer.newLine();
             }
-            writer.append(result);            
+            writer.append(result);
         }
     }
-    
+
     private static void usage() {
-        System.err.println("Usage: NGrams (config|index|search1|search2)" + 
+        System.err.println("Usage: NGrams (config|index|search1|search2)" +
           /*"\n\n   config <indexPath> <indexAlias> <confFile> [<confFileEncoding>] - add an index configuration file." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +      
+          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." + */
-          "\n\n   index <indexName> <inFile> <inFileEncoding> - index a list of documentes." +          
+          "\n\n   index <indexName> <inFile> <inFileEncoding> - index a list of documentes." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +      
+          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <indexName> - Lucene index name as defined in the configuration file" +
-          "\n       <inFile> - input file. See format bellow" + 
-          "\n       <inFileEncoding> - input file encoding" +                 
+          "\n       <inFile> - input file. See format bellow" +
+          "\n       <inFileEncoding> - input file encoding" +
           "\n\n   search1 <indexName> <inFile> <inFileEncoding> <outFile> [<outFileEncoding>] - find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +      
+          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <indexName> - Lucene index name as defined in the configuration file" +
-          "\n       <inFile> - input file. See format bellow" + 
-          "\n       <inFileEncoding> - input file encoding" +      
-          "\n       <outFile> - output file. See format bellow" + 
+          "\n       <inFile> - input file. See format bellow" +
+          "\n       <inFileEncoding> - input file encoding" +
+          "\n       <outFile> - output file. See format bellow" +
           "\n       [<outFileEncoding>] - output file encoding. Default = UTF-8" +
           "\n\n   search2 <indexName> <text> - find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +      
+          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
-          "\n       <confFileEncoding> - configuration file character encoding." +      
-          "\n       <indexName> - Lucene index name as defined in the configuration file" +      
+          "\n       <confFileEncoding> - configuration file character encoding." +
+          "\n       <indexName> - Lucene index name as defined in the configuration file" +
           "\n       <text> - text used to find documents" +
           "\n\nFormat of input file <inFile> line:  <id>|<ngram index/search text>|<content>|...|<content>" +
           "\nFormat of output file line: <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>\n");
-        
+
         System.exit(1);
     }
     /**
@@ -630,11 +630,11 @@ public class NGrams {
      * @throws javax.xml.parsers.ParserConfigurationException
      * @throws org.xml.sax.SAXException
      */
-    public static void main(String[] args) throws IOException, ParseException, 
-                                                  ParserConfigurationException, 
+    public static void main(String[] args) throws IOException, ParseException,
+                                                  ParserConfigurationException,
                                                   SAXException {
         final long startTime = new GregorianCalendar().getTimeInMillis();
-        
+
         if (args.length < 3) {
             usage();
         }
@@ -668,7 +668,7 @@ public class NGrams {
             if (set.isEmpty()) {
                 System.out.println("No result was found.");
             } else {
-                int pos = 0;            
+                int pos = 0;
                 for(String str : set) {
                     System.out.println((++pos) + ") " + str);
                 }
@@ -676,10 +676,10 @@ public class NGrams {
         } else {
             usage();
         }
-        
+
         final long endTime = new GregorianCalendar().getTimeInMillis();
         final long difTime = (endTime - startTime) / 1000;
-        
+
         System.out.println("\nElapsed time: " + difTime + "s");
-    }    
+    }
 }
