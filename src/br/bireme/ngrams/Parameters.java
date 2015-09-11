@@ -29,44 +29,52 @@ import java.util.TreeSet;
  * @author Heitor Barbieri
  * date: 20150720
  */
-class Parameters {    
+class Parameters {
+    final TreeSet<Score> scores;
+    final SourceField src;
     final IdField id;
     final IndexedNGramField indexed;
     final Set<ExactField> exacts;
     final Set<NGramField> ngrams;
     final Set<RegExpField> regexps;
-    final Set<NoCompareField> nocompare;
-    final TreeSet<Score> scores;
+    final Set<NoCompareField> nocompare;    
     final Field[] fields;
     final int nfields;
     
-    Parameters(final IdField id,
+    Parameters(final TreeSet<Score> scores,
+               final SourceField src,
+               final IdField id,
                final IndexedNGramField indexed,
                final Set<ExactField> exacts,
                final Set<NGramField> ngrams,
                final Set<RegExpField> regexps,
-               final Set<NoCompareField> nocompare,
-               final TreeSet<Score> scores) {
+               final Set<NoCompareField> nocompare) {
+        assert scores != null;
+        assert src != null;
         assert id != null;
         assert indexed != null;
         assert exacts != null;
         assert ngrams != null;
         assert regexps != null;
         assert nocompare != null;
-        assert scores != null;
-        
+                
+        this.scores = scores;        
+        this.src = src;
         this.id = id;
         this.indexed = indexed;
         this.exacts = exacts;
         this.ngrams = ngrams;
         this.regexps = regexps;
-        this.nocompare = nocompare;
-        this.scores = scores;        
-        this.nfields = 2 + exacts.size() + ngrams.size() + regexps.size() 
+        this.nocompare = nocompare;        
+        this.nfields = 3 + exacts.size() + ngrams.size() + regexps.size() 
                                                              + nocompare.size();
         
         fields = new Field[nfields];
         
+        if (src.pos >= nfields) {
+            throw new IllegalArgumentException("source pos >= " + nfields);
+        }
+        fields[src.pos] = src;
         if (id.pos >= nfields) {
             throw new IllegalArgumentException("id pos >= " + nfields);
         }

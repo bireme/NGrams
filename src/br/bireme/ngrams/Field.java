@@ -102,6 +102,13 @@ class IdField extends Field {
     }
 }
 
+class SourceField extends Field {
+    SourceField(final int pos) {
+        super("source", pos, Field.Status.REQUIRED, null, Field.Status.OPTIONAL, 
+                                                                            -1);
+    }
+}
+
 class NoCompareField extends Field {
     NoCompareField(final String name,
                    final int pos) {

@@ -44,11 +44,12 @@ import org.xml.sax.SAXException;
  *      <score minValue="0.9" minFields="1"/>
  *      <score minValue="0.7" minFields="3"/>
  *      <score minValue="0.6" minFields="4"/>
- *      <idField pos="0"/>
+ *      <sourceField pos="0"/>
+ *      <idField pos="1"/>      
  *      <idxNGramField name="titulo" pos="3" minScore="0.6"/>
  *      <nGramField pos="2" name="autores" minScore="0.7" status="OPTIONAL" match="REQUIRED" requiredField="1"/> 
  *      <exactField pos="6" name="volume" status="MAX_SCORE"/>
- *      <exactField pos="1" name="numero" status="OPTIONAL" match="REQUIRED"/>
+ *      <exactField pos="9" name="numero" status="OPTIONAL" match="REQUIRED"/>
  *      <exactField pos="4" name="ano" status="REQUIRED" match="OPTIONAL" />
  *      <exactField pos="5" name="pais" status="OPTIONAL" requiredField="2" match="MAX_SCORE" values="BR,US"/>
  *      <regExpField pos="7" name="paginas" status="OPTIONAL" requiredField="2" pattern="(\d+)" groupNum="1"/>
@@ -73,7 +74,10 @@ class ParameterParser {
                                                        new StringReader(spec)));
         
         doc.getDocumentElement().normalize();
-                       
+
+        final NodeList nSrcList = doc.getElementsByTagName("sourceField");
+        final SourceField src = parseSourceField(nSrcList);
+        
         final NodeList nIdList = doc.getElementsByTagName("idField");
         final IdField id = parseIdField(nIdList);
         
@@ -95,9 +99,31 @@ class ParameterParser {
         final NodeList nScoreList = doc.getElementsByTagName("score");
         final TreeSet<Score> scrs = parseScores(nScoreList);
                         
-        return new Parameters(id, idxNGram, exact, ngram, regexp, nocomp, scrs);
+        return new Parameters(scrs, src, id, idxNGram, exact, ngram, regexp, 
+                                                                        nocomp);
     }
        
+    static SourceField parseSourceField(final NodeList nSrcList) 
+                                                            throws IOException {
+        assert nSrcList != null;
+        
+        if (nSrcList.getLength() != 1) {
+            throw new IOException("number of 'srcField' is not one");
+        }
+        
+        final Node nNode = nSrcList.item(0);
+        if (nNode.getNodeType() != Node.ELEMENT_NODE) {
+            throw new IOException("'srcfield' is not an Element node");
+        }
+        final Element eElement = (Element) nNode;
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
+            throw new IOException("missing 'pos' attribute");
+        }
+        final SourceField src = new SourceField(Integer.parseInt(pos));
+        return src;
+    }
+    
     static IdField parseIdField(final NodeList nIdList) throws IOException {
         assert nIdList != null;
         
