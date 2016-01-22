@@ -52,7 +52,7 @@ public class CompareFiles {
         assert file1Encoding != null;
         assert file2 != null;
         assert file2Encoding != null;
-        
+
         final Charset charset1 = Charset.forName(file1Encoding);
         final Charset charset2 = Charset.forName(file2Encoding);
         final Set<String> set1 = new TreeSet<>();
@@ -61,7 +61,7 @@ public class CompareFiles {
                                      : Pattern.compile(file1RegExp).matcher("");
         final Matcher mat2 = (file2RegExp == null) ? null
                                      : Pattern.compile(file2RegExp).matcher("");
-        
+
         try (BufferedReader reader1 = Files.newBufferedReader(
                                           new File(file1).toPath(), charset1);
              BufferedReader reader2 = Files.newBufferedReader(
@@ -82,7 +82,7 @@ public class CompareFiles {
                 if (line1b != null) {
                     set1.add(line1b);
                 }
-            } 
+            }
             while (reader2.ready()) {
                 final String line2a = reader2.readLine();
                 final String line2b;
@@ -105,62 +105,62 @@ public class CompareFiles {
         int totalL = 0;
         int totalR = 0;
         int totalC = 0;
-        
-        if (showLeft) {            
+
+        if (showLeft) {
             for (String left : set1) {
                 if (!set2.contains(left)) {
                     System.out.println("<< " + left);
                     totalL++;
                 }
-            }            
+            }
         }
-        if (showRight) {            
+        if (showRight) {
             for (String right : set2) {
                 if (!set1.contains(right)) {
                     System.out.println(">> " + right);
                     totalR++;
-                }                
-            }            
+                }
+            }
         }
-        if (showCommon) {            
+        if (showCommon) {
             for (String left : set1) {
                 if (set2.contains(left)) {
                     System.out.println("== " + left);
                     totalC++;
                 }
-            }            
+            }
         }
-        
+
         System.out.println("\ntotal << : " + totalL);
         System.out.println("total >> : " + totalR);
         System.out.println("total == : " + totalC);
     }
-    
+
     private static void usage() {
-        System.err.println("usage: CompareFiles (common|different|onlyleft|onlyright|all)" 
+        System.err.println("usage: CompareFiles (common|different|onlyleft|onlyright|all)"
                 + "\n\t\t    <file1> <file1Encoding> <file2> <file2Encoding> "
                 + "\n\t\t    [-file1regexp=<regexp> -groupName1=<name>] "
                 + "\n\t\t    [-file2regexp=<regexp> -groupName2=<name>]");
         System.exit(1);
     }
-    
+
     public static void main(final String[] args) throws IOException {
         if (args.length < 5) {
             usage();
         }
-        final boolean showLeft  = (args[0].equals("different") || 
-                                   args[0].equals("onlyleft")  || 
+        final boolean showLeft  = (args[0].equals("different") ||
+                                   args[0].equals("onlyleft")  ||
                                    args[0].equals("all"));
-        final boolean showRight = (args[0].equals("different") || 
-                                   args[0].equals("onlyright") || 
+        final boolean showRight = (args[0].equals("different") ||
+                                   args[0].equals("onlyright") ||
                                    args[0].equals("all"));
-        final boolean showCommon = (args[0].equals("common") || 
+        final boolean showCommon = (args[0].equals("common") ||
                                     args[0].equals("all"));
         String f1RegExp = null;
         String gName1 = null;
         String f2RegExp = null;
         String gName2 = null;
-        
+
         for (int idx = 5; idx < args.length; idx++) {
             if (args[idx].startsWith("-file1regexp=")) {
                 f1RegExp = args[idx].substring(13);
@@ -186,7 +186,7 @@ public class CompareFiles {
         if ((gName2 == null) && (f2RegExp != null)) {
             usage();
         }
-        showLines(args[1], args[2], f1RegExp, gName1, 
+        showLines(args[1], args[2], f1RegExp, gName1,
                   args[3], args[4], f2RegExp, gName2,
                   showLeft, showRight, showCommon);
     }

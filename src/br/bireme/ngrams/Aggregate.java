@@ -63,30 +63,30 @@ public class Aggregate {
                 }
             }
         }
-        final TreeMap<Integer,TreeSet<String>> map2 = new TreeMap<>();        
+        final TreeMap<Integer,TreeSet<String>> map2 = new TreeMap<>();
         for (Map.Entry<String,Integer> entry : map1.entrySet()) {
             final Integer value = entry.getValue();
             TreeSet<String> set1 = map2.get(value);
             if (set1 == null) {
-                set1 = new TreeSet<>();                
+                set1 = new TreeSet<>();
                 map2.put(value, set1);
             }
             set1.add(entry.getKey());
         }
-                
-        for (Map.Entry<Integer,TreeSet<String>> entry : 
+
+        for (Map.Entry<Integer,TreeSet<String>> entry :
                                               map2.descendingMap().entrySet()) {
             for (String key : entry.getValue()) {
                 System.out.println(key + " : " + entry.getKey());
             }
         }
     }
-    
+
     private static void usage() {
         System.err.println("usage: Aggregate <file> <fileEncoding> <aggregColumn>");
         System.exit(1);
     }
-    
+
     public static void main(final String[] args) throws IOException {
         if (args.length != 3) {
             usage();

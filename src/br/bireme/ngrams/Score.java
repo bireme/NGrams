@@ -29,16 +29,16 @@ class Score implements Comparable {
     /**
      * Minimum score value [0,1]
      */
-    final float minValue; 
+    final float minValue;
     /**
      * Minimum required fields for these score
      */
     final int minFields;
-    
+
     Score(final float minValue,
           final int minFields) {
         if ((minValue < 0) || (minValue > 1)) {
-            throw new IllegalArgumentException("minValue: " + minValue 
+            throw new IllegalArgumentException("minValue: " + minValue
                                                                     + " [0,1]");
         }
         if (minFields < 0) {
@@ -64,9 +64,9 @@ class Score implements Comparable {
             return false;
         }
         final Score other = (Score) obj;
-        return (Float.floatToIntBits(this.minValue) != 
+        return (Float.floatToIntBits(this.minValue) !=
                                          Float.floatToIntBits(other.minValue));
-    }        
+    }
 
     @Override
     public int compareTo(Object t) {
@@ -74,7 +74,7 @@ class Score implements Comparable {
             throw new NullPointerException();
         }
         final float res = (minValue - ((Score)t).minValue);
-        
+
         return (res < 0) ? -1 : (res == 0) ? 0 : 1;
     }
 }

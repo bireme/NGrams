@@ -21,9 +21,7 @@
 package br.bireme.ngrams;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.core.LowerCaseFilter;
 import org.apache.lucene.analysis.ngram.NGramTokenizer;
 
 /**
@@ -33,13 +31,13 @@ import org.apache.lucene.analysis.ngram.NGramTokenizer;
  */
 public class NGAnalyzer extends Analyzer {
     public static final int DEF_NG_SIZE = 3;
-    
+
     private final int ngramSize;
-    
+
     public NGAnalyzer() {
         this(DEF_NG_SIZE);
     }
-    
+
     public NGAnalyzer(int ngramSize) {
         super();
         if (ngramSize < 1) {
@@ -47,25 +45,19 @@ public class NGAnalyzer extends Analyzer {
         }
         this.ngramSize = ngramSize;
     }
-    
+
     public int getNgramSize() {
         return ngramSize;
     }
-    
+
     @Override
     protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
         final Tokenizer source = new NGramTokenizer(ngramSize, ngramSize);
-    
+        
+        // Não funciona - se duas strings diferem de apenas uma letra,
+        // todos os tokens serão diferentes.
+        //final Tokenizer source = new NGTokenizer(ngramSize);
+
         return new Analyzer.TokenStreamComponents(source);
     }
-    
-    /*
-    @Override
-    protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
-        // NGramTokenFilter // KeywordTokenizer
-        final Tokenizer source = new NGramTokenizer(ngramSize, ngramSize);
-        final TokenStream filter = new LowerCaseFilter(source);
-    
-        return new Analyzer.TokenStreamComponents(source, filter);
-    }*/     
 }

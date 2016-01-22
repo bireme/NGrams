@@ -24,7 +24,7 @@ public class Afiliacao {
         final Charset charset1 = Charset.forName("UTF-8");
         try (BufferedReader reader1 = Files.newBufferedReader(
                   new File("./autorAfiliacaoNormalizado.csv").toPath(), charset1)) {
-            
+
             int lineNum = 0;
             String lastLine = null;
             while (reader1.ready()) {
@@ -35,7 +35,7 @@ public class Afiliacao {
                     final String[] split = line.split(" *\\| *");
                     if (lastLine != null) {
                         final String str1 = limitSize(normalize(lastLine), 100);
-                        final String str2 = limitSize(normalize(split[0]), 100); 
+                        final String str2 = limitSize(normalize(split[0]), 100);
                         final float dist = NGDistance(str1, str2);
                         if (dist >= 0.35) {
                             System.out.println("dist=" + dist

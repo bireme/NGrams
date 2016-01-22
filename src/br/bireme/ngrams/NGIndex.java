@@ -20,12 +20,9 @@
 =========================================================================*/
 package br.bireme.ngrams;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import javax.xml.parsers.ParserConfigurationException;
+import java.util.Objects;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -34,109 +31,103 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
-import org.xml.sax.SAXException;
 
 /**
  *
  * @author Heitor Barbieri
- * date: 20150721
+ * date: 20151013
  */
-class NGInstance {
+public class NGIndex {
+    private final String name;
     private final String indexPath;
     private final Analyzer analyzer;
-    private final Parameters parameters;
-    private final String config;
-     
-    NGInstance(final String indexPath,
-               final Analyzer analyzer,
-               final String confFile,
-               final String confFileEncoding) throws IOException, 
-                                                   ParserConfigurationException, 
-                                                   SAXException {
+
+    public NGIndex(final String name,
+                   final String indexPath) throws IOException {
+        this(name, indexPath, new NGAnalyzer());
+    }
+
+    public NGIndex(final String name,
+                   final String indexPath,
+                   final Analyzer analyzer) throws IOException {
+        if (name == null) {
+            throw new NullPointerException("name");
+        }
         if (indexPath == null) {
             throw new NullPointerException("indexPath");
         }
         if (analyzer == null) {
             throw new NullPointerException("analyzer");
         }
-        if (confFile == null) {
-            throw new NullPointerException("confFile");
-        }
-        if (confFileEncoding == null) {
-            throw new NullPointerException("confFileEncoding");
-        }
-        this.indexPath = indexPath;
+        this.name = name;
+        this.indexPath = new File(indexPath).getCanonicalPath();
         this.analyzer = analyzer;
-        this.config = readFile(confFile, confFileEncoding);
-        this.parameters = ParameterParser.parseParameters(this.config);
     }
-    
-    IndexWriter getIndexWriter() throws IOException {
+
+    public String getName() {
+        return name;
+    }
+
+    public IndexWriter getIndexWriter() throws IOException {
         return getIndexWriter(indexPath, analyzer);
     }
-    
-    IndexSearcher getIndexSearcher() throws IOException {
+
+    public IndexSearcher getIndexSearcher() throws IOException {
         return getIndexSearcher(indexPath);
     }
-    
-    Parameters getParameters() {
-        return parameters;
+
+    public Analyzer getAnalyzer() {
+        return analyzer;
     }
-    
-    String getConfig() {
-        return config;
-    }   
-    
-    private static IndexWriter getIndexWriter(final String indexPath,
-                                              final Analyzer analyzer) 
+
+    private IndexWriter getIndexWriter(final String indexPath,
+                                       final Analyzer analyzer)
                                                             throws IOException {
         assert indexPath != null;
         assert analyzer != null;
-        
+
         final Directory directory = FSDirectory.open(
                                                   new File(indexPath).toPath());
         final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);
-    
+
         return new IndexWriter(directory, cfg);
     }
-        
-    private static IndexSearcher getIndexSearcher(final String indexPath) 
+
+    private IndexSearcher getIndexSearcher(final String indexPath)
                                                             throws IOException {
-         
+
         final DirectoryReader ireader = DirectoryReader.open(
                                 //FSDirectory.open(new File(indexPath).toPath()));
                                new MMapDirectory(new File(indexPath).toPath()));
                                //new RAMDirectory(FSDirectory.open(new File(indexPath).toPath()), IOContext.DEFAULT));
                                //new RAMDirectory(FSDirectory.open(new File(indexPath).toPath()), IOContext.READONCE));
-        
+
         return new IndexSearcher(ireader);
     }
-    
-    static String readFile(final String confFile,
-                           final String confFileEncoding) throws IOException {
-        assert confFile != null;
-        assert confFileEncoding != null;
-        
-        final Charset charset = Charset.forName(confFileEncoding);
-        final StringBuilder builder = new StringBuilder();
-        boolean first = true;
-        
-        try (BufferedReader reader = Files.newBufferedReader(
-                                          new File(confFile).toPath(), 
-                                                                     charset)) {                     
-            while (true) {
-                final String line = reader.readLine();
-                if (line == null) {
-                    break;
-                }
-                if (first) {
-                    first = false;
-                } else {
-                    builder.append("\n");
-                }
-                builder.append(line);
-            }
-        }
-        return builder.toString();
+
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 97 * hash + Objects.hashCode(this.name);
+        hash = 97 * hash + Objects.hashCode(this.indexPath);
+        return hash;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final NGIndex other = (NGIndex) obj;
+        if (!Objects.equals(this.name, other.name)) {
+            return false;
+        }
+        if (!Objects.equals(this.indexPath, other.indexPath)) {
+            return false;
+        }
+        return true;
+    }        
 }

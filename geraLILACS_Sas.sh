@@ -1,0 +1,5 @@
+echo "Gera arquivo a ser indexado (S/as) a partir da LILACS"
+echo "<database>|<id>|<autores>|<titulo_artigo>|<titulo_revista>|<ano_publicacao>|<volume>|<numero_fasciculo>|<pagina_inicial>"
+
+
+./mx /bases/lilG4/lil.lil/LILACS "pft=if v5.1='S' then s1:=(if p(v10) then (|//@//|+v10^*) else (|//@//|+v11^*) fi), s3:=(v30^*),(if p(v12) then 'LILACS|',v2[1],'|',replace(v12^*,'|',''),'|',s1,'|',s3,'|',v65[1].4,'|',v31[1],'|',v32[1]'|',if p(v14[1]^*) then v14[1]^* else v20[1] fi,/ fi),(if p(v13) then 'LILACS|',v2[1],'|',replace(v13^*,'|',''),'|',s1,'|',s3,'|',v65[1].4,'|',v31[1],'|',v32[1]'|',if p(v14[1]^*) then v14[1]^* else v20[1] fi/ fi),if a(v12) then (if p(v18) then 'LILACS|',v2[1],'|',replace(v18^*,'|',''),'|',s1,'|',s3,'|',v65[1].4,'|',v31[1],'|',v32[1],'|',if p(v14[1]^*) then v14[1]^* else v20[1] fi/ fi) fi, if a(v12) then (if p(v19) then 'LILACS|',v2[1],'|',replace(v19^*,'|',''),'|',s1,'|',s3,'|',if p(v14[1]^*) then v14[1]^* else v20[1] fi,'|',v65[1].4,'|',v31[1],'|',v32[1],'|',if p(v14[1]^*) then v14[1]^* else v20[1] fi/ fi) fi fi" lw=0 tell=50000 now > LILACS_Sas.txt

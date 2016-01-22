@@ -28,9 +28,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -39,12 +40,17 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.NGramPhraseQuery;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.spell.NGramDistance;
 import org.xml.sax.SAXException;
@@ -57,42 +63,57 @@ import org.xml.sax.SAXException;
  * date: 20150624
  */
 public class NGrams {
-    static class Result implements Comparator<Result> {
+    static class Result implements Comparable<Result> {
         final String[] param;
         final Document doc;
         final float similarity;
-                
+        final float score;
+        private final String compare;
+
         Result(final String[] param,
                final Document doc,
-               final float similarity) {
+               final float similarity,
+               final float score) {
             assert param != null;
             assert doc != doc;
             assert similarity >= 0;
-            
+            assert score >= 0;
+
             this.param = param;
             this.doc = doc;
             this.similarity = similarity;
-        }        
-
+            this.score = score;
+            this.compare = similarity + "_" + doc.get(DatabaseField.FNAME) + "_" 
+                                                       + doc.get(IdField.FNAME);
+        }
+        
         @Override
-        public int compare(final Result t1, 
-                           final Result t2) {
-            return (t1.similarity < t2.similarity) ? -1
-                                     : (t1.similarity == t2.similarity) ? 0 : 1;
+        public int compareTo(final Result other) {
+            return compare.compareTo(other.compare);
         }
     }
-    
+
     /*
        Maximum ngram text size. If longer then it, it will be truncated.
     */
-    public static final int MAX_NG_TEXT_SIZE = 80;
+    public static final int MAX_NG_TEXT_SIZE = 90;
+
+    /*
+      Suffix name of the not normalized indexed field associated to the field
+      IndexedNGramField.
+    */
+    public static final String NOT_NORMALIZED_FLD = "~notnormalized";
 
     // <id>|<ngram index/search text>|<content>|...|<content>
-    public static void index(final String indexName,
+    public static void index(final NGIndex index,
+                             final NGSchema schema,
                              final String inFile,
                              final String inFileEncoding) throws IOException {
-        if (indexName == null) {
-            throw new NullPointerException("indexName");
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
         }
         if (inFile == null) {
             throw new NullPointerException("inFile");
@@ -102,10 +123,9 @@ public class NGrams {
         }
 
         final Charset charset = Charset.forName(inFileEncoding);
-        final NGInstance instance = Instances.getInstance(indexName);
-        final IndexWriter writer = instance.getIndexWriter();
-        final Parameters parameters = instance.getParameters();
-        final br.bireme.ngrams.Field[] flds = parameters.fields;
+        final IndexWriter writer = index.getIndexWriter();
+        final Parameters parameters = schema.getParameters();
+        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
         int cur = 0;
 
         try (BufferedReader reader = Files.newBufferedReader(
@@ -119,10 +139,10 @@ public class NGrams {
                 }
                 final String[] split = line.replace(':', ' ').trim()
                                            .split(" *\\| *", Integer.MAX_VALUE);
-                if (split.length != parameters.nfields) {
+                if (split.length <= parameters.maxIdxFieldPos) {
                     throw new IOException("invalid number of fields: " + line);
                 }
-                final Document doc = createDocument(flds, split, parameters);
+                final Document doc = createDocument(flds, split);
                 if (doc != null) {
                     writer.addDocument(doc);
                 }
@@ -135,22 +155,18 @@ public class NGrams {
         }
     }
 
-    private static Document createDocument(final br.bireme.ngrams.Field[] fields,
-                                           final String[] flds,
-                                           final Parameters parameters)
+    private static Document createDocument(Map<String, br.bireme.ngrams.Field> fields,
+                                           final String[] flds)
                                                             throws IOException {
         assert fields != null;
         assert flds != null;
-        assert parameters != null;
 
-        Document doc = checkFieldsPresence(parameters, flds) ? new Document()
-                                                             : null;
-        final Set<String> names = new HashSet<>();
-
+        Document doc = checkFieldsPresence(fields, flds, true) 
+                                                         ? new Document(): null;        
         if (doc != null) {
-            for (int idx = 0; idx < parameters.nfields; idx++) {
-                final String content = flds[idx];
-                final br.bireme.ngrams.Field fld = fields[idx];
+            final Set<String> names = new HashSet<>();
+            for (br.bireme.ngrams.Field fld : fields.values()) {
+                final String content = flds[fld.ipos];
                 final String fname = fld.name;
                 if (fld instanceof IndexedNGramField) {
                     if (names.contains(fname)) {
@@ -159,25 +175,34 @@ public class NGrams {
                     }
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new TextField(fld.name, ncontent, Field.Store.YES));
-                } else if (fld instanceof SourceField) {
+                    doc.add(new TextField(fname, ncontent, Field.Store.YES));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                               content.trim()));
+
+                } else if (fld instanceof DatabaseField) {
                     if (names.contains(fname)) {
                         doc = null;
                         break;
                     }
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StoredField(fld.name, ncontent));
+                    doc.add(new StoredField(fname, ncontent));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                               content.trim()));
                 } else if (fld instanceof IdField) {
                     if (names.contains(fname)) {
                         doc = null;
                         break;
                     }
-                    doc.add(new StoredField(fld.name, content));
+                    doc.add(new StoredField(fname, content));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                               content.trim()));
                 } else {
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StoredField(fld.name, ncontent));
+                    doc.add(new StoredField(fname, ncontent));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                               content.trim()));
                 }
                 names.add(fname);
             }
@@ -185,15 +210,25 @@ public class NGrams {
         return doc;
     }
 
-    private static boolean checkFieldsPresence(final Parameters parameters,
-                                               final String[] param) {
-        assert parameters != null;
+    /**
+     * If a record has all required fields then true else false
+     * @param fields fields specification
+     * @param param fields content
+     * @param indexing true ifi indexing, false if searching
+     * @return 
+     */
+    private static boolean checkFieldsPresence(final Map<String, 
+                                                 br.bireme.ngrams.Field> fields,
+                                               final String[] param,
+                                               final boolean indexing) {
+        assert fields != null;
         assert param != null;
 
         boolean ok = true;
-
-        for (int idx = 0; idx < param.length; idx++) {
-            ok = checkPresence(idx, parameters, param, new HashSet<Integer>());
+        final Set<String> checked = new HashSet<>();
+        
+        for (String name : fields.keySet()) {
+            ok = checkPresence(name, fields, param, checked, indexing);
             if (!ok) {
                 break;
             }
@@ -201,38 +236,47 @@ public class NGrams {
         return ok;
     }
 
-    private static boolean checkPresence(final int pos,
-                                         final Parameters parameters,
+    private static boolean checkPresence(final String fieldName,
+                                         final Map<String, br.bireme.ngrams.Field> fields,
                                          final String[] param,
-                                         final Set<Integer> checked) {
-        assert pos >= 0;
-        assert parameters != null;
+                                         final Set<String> checked,
+                                         final boolean indexing) {
+        assert fieldName != null;
+        assert fields != null;
         assert param != null;
         assert checked != null;
 
         final boolean ok;
 
-        if ((pos == -1) || (checked.contains(pos))) {
+        if (checked.contains(fieldName)) {
             ok = true;
         } else {
-            final br.bireme.ngrams.Field field = parameters.fields[pos];
-
-            checked.add(pos);
+            final br.bireme.ngrams.Field field = fields.get(fieldName);
+            final int pos = indexing ? field.ipos : field.spos;
+            final String requiredField = field.requiredField;
+            
+            checked.add(fieldName);
+            
             ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
-                         : checkPresence(field.requiredField, parameters, param,
-                                                                       checked);
+                         : (requiredField == null) ? true
+                    : checkPresence(requiredField, fields, param, checked, 
+                                                                      indexing);
         }
         return ok;
     }
 
-    public static void search(final String indexName,
+    public static void search(final NGIndex index,
+                              final NGSchema schema,
                               final String inFile,
                               final String inFileEncoding,
                               final String outFile,
                               final String outFileEncoding) throws IOException,
                                                                 ParseException {
-        if (indexName == null) {
-            throw new NullPointerException("indexName");
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
         }
         if (inFile == null) {
             throw new NullPointerException("inFile");
@@ -248,9 +292,9 @@ public class NGrams {
         }
         final Charset inCharset = Charset.forName(inFileEncoding);
         final Charset outCharset = Charset.forName(outFileEncoding);
-        final NGInstance instance = Instances.getInstance(indexName);
-        final IndexSearcher searcher = instance.getIndexSearcher();
-        final NGAnalyzer analyzer = (NGAnalyzer)Instances.getAnalyzer();
+        final IndexSearcher searcher = index.getIndexSearcher();
+        final NGAnalyzer analyzer = (NGAnalyzer)index.getAnalyzer();
+        final Parameters parameters = schema.getParameters();
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
@@ -259,11 +303,11 @@ public class NGrams {
                                           new File(inFile).toPath(), inCharset);
              final BufferedWriter writer = Files.newBufferedWriter(
                                       new File(outFile).toPath(), outCharset)) {
-            writer.append("search_doc_id|similarity|index_doc_id|" +
-                          "ngram_search_text|ngram_index_text|search_source|" + 
+            writer.append("rank|similarity|search_doc_id|index_doc_id|" +
+                          "ngram_search_text|ngram_index_text|search_source|" +
                                                               "index_source\n");
-            
-            final Set<Result> results = new TreeSet<>();
+
+            final Set<Result> results = new HashSet<>();
             while (true) {
                 final String line = reader.readLine();
                 if (line == null) {
@@ -272,86 +316,85 @@ public class NGrams {
                 if (++cur % 1000 == 0) {
                     System.out.println("<<< " + cur);
                 }
-                
+
                 results.clear();
-                searchRaw(indexName, searcher, analyzer, ngDistance, line, 
+                final String[] split = line.replace(':', ' ').trim()
+                                           .split(" *\\| *", Integer.MAX_VALUE);
+                if (split.length != parameters.nameFields.size()) {
+                    throw new IOException("invalid number of fields: " + line);
+                }
+                if (checkFieldsPresence(parameters.nameFields,split, false)) {
+                    searchRaw(parameters, searcher, analyzer, ngDistance, line,
                                                                 id_id, results);
-                if (!results.isEmpty()) {
-                    writeOutput(indexName, results, writer);
+                    if (!results.isEmpty()) {
+                        writeOutput(parameters, results, writer);
+                    }
                 }
             }
             searcher.getIndexReader().close();
         }
     }
 
-    public static Set<String> search(final Set<String> indexNames,
+    public static Set<String> search(final NGIndex index,
+                                     final NGSchema schema,
                                      final String text,
-                                     final boolean json) throws IOException,
+                                     final boolean original) throws IOException,
                                                                 ParseException {
-        if (indexNames == null) {
-            throw new NullPointerException("indexNames");
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
         }
         if (text == null) {
             throw new NullPointerException("text");
         }
-        final Set<Result> results = new HashSet<>();
-        final Set<String> strSet = new TreeSet<>();
-        
-        for (String indexName : indexNames) {
-            final NGInstance instance = Instances.getInstance(indexName);
-            final Parameters parameters = instance.getParameters();                    
-            
-            results.clear();
-            searchRaw(indexName, text, results);
-            final Set<String> auxSet = json ? results2json(parameters, results)
-                                            : results2pipe(parameters, results);
-            strSet.addAll(auxSet);
-        }
-        
-        return strSet;
-    }
-        
-    public static Set<String> search(final String indexName,
-                                     final String text,
-                                     final boolean json) throws IOException,
-                                                                ParseException {
-        if (indexName == null) {
-            throw new NullPointerException("indexName");
-        }
-        if (text == null) {
-            throw new NullPointerException("text");
-        }        
-        final NGInstance instance = Instances.getInstance(indexName);
-        final Parameters parameters = instance.getParameters();
-        final Set<Result> results = new TreeSet<>();
-        
-        searchRaw(indexName, text, results);
-        
-        return json ? results2json(parameters, results) 
-                    : results2pipe(parameters, results);
-    }
-    
-    private static void searchRaw(final String indexName,
-                                  final String text,
-                                  final Set<Result> results) 
-                                            throws IOException, ParseException {
-        assert indexName != null;
-        assert text != null;
-        assert results != null;
-        
-        final NGInstance instance = Instances.getInstance(indexName);
-        final IndexSearcher searcher = instance.getIndexSearcher();
-        final NGAnalyzer analyzer = (NGAnalyzer)Instances.getAnalyzer();
+        final IndexSearcher searcher = index.getIndexSearcher();
+        final NGAnalyzer analyzer = (NGAnalyzer)index.getAnalyzer();
+        final Parameters parameters = schema.getParameters();
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
-        searchRaw(indexName, searcher, analyzer, ngDistance, text, id_id, 
+        final Set<Result> results = new HashSet<>();
+
+        searchRaw(parameters, searcher, analyzer, ngDistance, text, id_id,
                                                                        results);
         searcher.getIndexReader().close();
+        
+        return original ? results2pipeFull(parameters, results)
+                        : results2pipe(parameters, results);
     }
     
+    public static Set<String> searchJson(final NGIndex index,
+                                         final NGSchema schema,
+                                         final String text) throws IOException,
+                                                                ParseException {
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }
+        if (text == null) {
+            throw new NullPointerException("text");
+        }
+        final IndexSearcher searcher = index.getIndexSearcher();
+        final NGAnalyzer analyzer = (NGAnalyzer)index.getAnalyzer();
+        final Parameters parameters = schema.getParameters();
+        final NGramDistance ngDistance = new NGramDistance(
+                                                       analyzer.getNgramSize());
+        final Set<String> id_id = new HashSet<>();
+        final TreeSet<Result> results = new TreeSet<>();
+
+        searchRaw(parameters, searcher, analyzer, ngDistance, text, id_id,
+                                                                       results);
+        searcher.getIndexReader().close();
+
+        return results2json(parameters, results.descendingSet());
+    }
+
     // <id>|<ngram search text>|<content>|...|<content>
-    private static void searchRaw(final String indexName,
+    private static void searchRaw(final Parameters parameters,
                                   final IndexSearcher searcher,
                                   final NGAnalyzer analyzer,
                                   final NGramDistance ngDistance,
@@ -359,7 +402,7 @@ public class NGrams {
                                   final Set<String> id_id,
                                   final Set<Result> results)
                                             throws IOException, ParseException {
-        assert indexName != null;
+        assert parameters != null;
         assert searcher != null;
         assert analyzer != null;
         assert ngDistance != null;
@@ -367,18 +410,86 @@ public class NGrams {
         assert id_id != null;
         assert results != null;
 
-        final NGInstance instance = Instances.getInstance(indexName);
-        final Parameters parameters = instance.getParameters();
         final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
-        if (param.length != parameters.nfields) {
+        if (param.length != parameters.nameFields.size()) {
             throw new IOException(text);
         }
         final String fname = parameters.indexed.name;
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
-                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
+                       param[parameters.indexed.spos]), MAX_NG_TEXT_SIZE).trim();
+        final int MAX_RESULT = 100;
         if (!ntext.isEmpty()) {
             final Query query = parser.parse(QueryParser.escape(ntext));
+            final TopDocs top = searcher.search(query, 10);
+            final float lower = parameters.scores.first().minValue;
+            ScoreDoc[] scores = top.scoreDocs;
+            ScoreDoc after = null;
+            int tot = 0;
+            outer: while (scores.length > 0) {
+                for (ScoreDoc sdoc : scores) {
+                    if (++tot > MAX_RESULT) {
+                        break outer;
+                    }
+                    final Document doc = searcher.doc(sdoc.doc);
+                    final float similarity =
+                                  ngDistance.getDistance(ntext, doc.get(fname));
+                    //if (similarity < lower) {
+                        //break outer;
+                    //}
+                    if (similarity >= lower) {
+                        final Result out = createResult(id_id, parameters, ntext,
+                                 param, doc, ngDistance, similarity,sdoc.score);
+                        if (out != null) {
+                            //System.out.println("##### " + out.compare);
+                            results.add(out);
+                        }
+                    }
+                    after = sdoc;
+                }
+                if (after != null) {
+                    scores = searcher.searchAfter(after, query, 10).scoreDocs;
+                }
+            }
+        }
+    }
+
+    private static void searchRaw2(final Parameters parameters,
+                                   final IndexSearcher searcher,
+                                   final NGAnalyzer analyzer,
+                                   final NGramDistance ngDistance,
+                                   final String text,
+                                   final Set<String> id_id,
+                                   final Set<Result> results)
+                                            throws IOException, ParseException {
+        assert parameters != null;
+        assert searcher != null;
+        assert analyzer != null;
+        assert ngDistance != null;
+        assert text != null;
+        assert id_id != null;
+        assert results != null;
+
+        final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
+        if (param.length != parameters.nameFields.size()) {
+            throw new IOException(text);
+        }
+        final String fname = parameters.indexed.name;
+        final QueryParser parser = new QueryParser(fname, analyzer);
+        final String ntext = Tools.limitSize(Tools.normalize(
+                       param[parameters.indexed.spos]), MAX_NG_TEXT_SIZE).trim();
+        if (!ntext.isEmpty()) {
+            final IndexReader ireader = searcher.getIndexReader();
+            final Query query0 = parser.parse(QueryParser.escape(ntext));
+            final Query q0 = query0.rewrite(ireader);
+            final String[] terms = new String[] { QueryParser.escape(ntext) };
+            final Query query = new NGramPhraseQuery(NGAnalyzer.DEF_NG_SIZE,
+                                             new PhraseQuery(20, fname, terms));
+            final Query query1 = new PhraseQuery(fname, terms);
+            final Query query2 = new TermQuery(new Term(fname,
+                                                    QueryParser.escape(ntext)));
+
+            final Query q2 = query.rewrite(ireader);
             final TopDocs top = searcher.search(query, 10);
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
@@ -392,7 +503,7 @@ public class NGrams {
                         break outer;
                     }
                     final Result out = createResult(id_id, parameters, ntext,
-                                            param, doc, ngDistance, similarity);
+                                param, doc, ngDistance, similarity, sdoc.score);
                     if (out != null) {
                         //System.out.println("##### " + out + "\n");
                         results.add(out);
@@ -413,7 +524,8 @@ public class NGrams {
                                        final String[] param,
                                        final Document doc,
                                        final NGramDistance ngDistance,
-                                       final float similarity) {
+                                       final float similarity,
+                                       final float score) {
         assert id_id != null;
         assert parameters != null;
         assert stext != null;
@@ -421,31 +533,40 @@ public class NGrams {
         assert doc != null;
         assert ngDistance != null;
         assert similarity >= 0;
+        assert score >= 0;
 
         final Result ret;
-        final br.bireme.ngrams.Field[] fields = parameters.fields;
+        final Collection<br.bireme.ngrams.Field> fields = parameters.nameFields.values();
         int matchedFields = 0;
 
-        for (int pos = 0; pos < param.length; pos++) {
+        for (br.bireme.ngrams.Field fld: fields) {
             final int val =
-                      checkField(ngDistance, fields[pos], param[pos], doc);
+                      checkField(ngDistance, fld, param[fld.spos], doc);
             if (val == -1) {
                 matchedFields = -1;
                 break; // skip this document because it does not follow requests
             }
             matchedFields += val;
         }
-        if (matchedFields > 0) {
+        
+        final String id1 = param[parameters.id.spos];
+        final String id2 = (String)doc.get("id");
+        final String id1id2 = (id1.compareTo(id2) <= 0) ?
+                                      (id1 + "_" + id2) : (id2 + "_" + id1);
+        if ((matchedFields == 0) && (fields.size() == 3)) { // DatabaseField|IdField|IndexedNGramField            
+            if (id_id.contains(id1id2)) {
+                ret = null;
+            } else {
+                id_id.add(id1id2);
+                ret = new NGrams.Result(param, doc, similarity, score);
+            }
+        } else if (matchedFields > 0) {
             if (checkScore(parameters, param, similarity, matchedFields)) {
-                final String id1 = param[parameters.id.pos];
-                final String id2 = (String)doc.get("id");
-                final String id1id2 = (id1.compareTo(id2) <= 0) ?
-                                          (id1 + "_" + id2) : (id2 + "_" + id1);
                 if (id_id.contains(id1id2)) {
                     ret = null;
                 } else {
                     id_id.add(id1id2);
-                    ret = new NGrams.Result(param, doc, similarity);
+                    ret = new NGrams.Result(param, doc, similarity, score);
                 }
             } else {
                 ret = null;
@@ -455,44 +576,81 @@ public class NGrams {
         }
         return ret;
     }
-    
+
     private static Set<String> results2pipe(final Parameters parameters,
                                             final Set<Result> results) {
         assert parameters != null;
         assert results != null;
-     
-        final Set<String> ret = new TreeSet<>();
-        
+
+        final TreeSet<String> ret = new TreeSet<>();
+
         for (Result result : results) {
             final String[] param = result.param;
             final Document doc = result.doc;
             final String itext = (String)doc.get(parameters.indexed.name);
             final String stext = Tools.limitSize(Tools.normalize(
-                           param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
-            final String id1 = param[parameters.id.pos];
+                           param[parameters.indexed.spos]), MAX_NG_TEXT_SIZE).trim();
+            final String id1 = param[parameters.id.spos];
             final String id2 = (String)doc.get("id");
-            final String src1 = param[parameters.src.pos];
-            final String src2 = (String)doc.get("source");
-            final String str = id1 + "|" + result.similarity + "|" + id2 + "|"+ 
-                                  stext + "|" + itext + "|" + src1 + "|" + src2;
+            final String src1 = param[parameters.db.spos];
+            final String src2 = (String)doc.get("database");
+            final String str = result.score + "|" + result.similarity + "|" + 
+                    id1 + "|" + id2 + "|" + stext + "|" + itext + "|" + src1 + 
+                    "|" + src2;
+            //System.out.println("! " + result.compare);
             ret.add(str);
-        }        
-        return ret;
+        }
+        return ret.descendingSet();
     }
-    
+
+    private static Set<String> results2pipeFull(final Parameters parameters,
+                                                final Set<Result> results) {
+        assert parameters != null;
+        assert results != null;
+
+        final TreeSet<String> ret = new TreeSet<>();
+        final StringBuilder builder = new StringBuilder();
+        final Collection<br.bireme.ngrams.Field> flds = parameters.sfields
+                                                                      .values();
+
+        for (Result result : results) {
+            final String[] param = result.param;
+            final Document doc = result.doc;            
+
+            builder.setLength(0);
+            builder.append(result.score).append("|").append(result.similarity);
+            for (int idx = 0; idx < flds.size(); idx++) {
+                String fld = param[idx];
+                fld = (fld == null) ? "" : fld.trim();
+                builder.append("|").append(fld);
+                builder.append("|").append(Tools.limitSize(Tools.normalize(fld),
+                                                       MAX_NG_TEXT_SIZE));
+            }
+            for (br.bireme.ngrams.Field field: flds) {
+                final String fldN = doc.get(field.name);
+                final String fld = doc.get(field.name + NGrams.NOT_NORMALIZED_FLD);
+                
+                builder.append("|").append((fld == null) ? "" : fld);
+                builder.append("|").append((fldN == null) ? "" : fldN);
+            }
+            ret.add(builder.toString());
+        }
+        return ret.descendingSet();
+    }
+
     private static Set<String> results2json(final Parameters parameters,
                                             final Set<Result> results) {
         assert parameters != null;
         assert results != null;
-        
+
         String name;
-        final StringBuilder builder = new StringBuilder();        
-        final Set<String> ret = new TreeSet<>();
-        
+        final StringBuilder builder = new StringBuilder();
+        final TreeSet<String> ret = new TreeSet<>();
+
         for (Result result : results) {
             builder.setLength(0);
             builder.append("{");
-            name = parameters.src.name;
+            name = parameters.db.name;
             builder.append(" \"").append(name).append("\":\"")
                    .append(result.doc.get(name)).append("\",");
             name = parameters.id.name;
@@ -525,14 +683,15 @@ public class NGrams {
                 name = nocompare.name;
                 builder.append(", \"").append(name).append("\":\"")
                        .append(result.doc.get(name)).append("\"");
-            }        
+            }
+            builder.append(", \"score\":\"").append(result.score).append("\"");
             builder.append(" }");
             ret.add(builder.toString());
         }
-        
-        return ret;
+
+        return ret.descendingSet();
     }
-        
+
     private static boolean checkScore(final Parameters parameters,
                                       final String[] param,
                                       final float similarity,
@@ -559,6 +718,13 @@ public class NGrams {
         return (score != null) && (matchedFields >= score.minFields);
     }
 
+    /**
+     * Checks the fields/definititons to tell if the score should be MAX_SCORE 
+     * or not.
+     * @param fields field's definitions
+     * @param param field's content
+     * @return true if MAX_SCORE should be used or false if not.
+     */
     private static boolean isMaxScore(
                              final Set<? extends br.bireme.ngrams.Field> fields,
                              final String[] param) {
@@ -569,14 +735,14 @@ public class NGrams {
 
         for (br.bireme.ngrams.Field field : fields) {
             if ((field.presence == Status.MAX_SCORE) &&
-                (param[field.pos].isEmpty())) {
+                (param[field.spos].isEmpty())) {
                 maxScore = true;
                 break;
             }
             if (field.content != null) {
                 boolean found = false;
                 for (String str: field.content) {
-                    if (str.equals(param[field.pos])) {
+                    if (str.equals(param[field.spos])) {
                         found = true;
                         break;
                     }
@@ -648,14 +814,15 @@ public class NGrams {
             if (field.presence == Status.REQUIRED) {
                 ret = -1;
             } else {
-                ret = text.isEmpty() ? 0 : -1;
+                ret = text.isEmpty() ? 0 
+                               : field.contentMatch == Status.OPTIONAL ? 0 : -1;
             }
         } else if (fld.equals(text)) {
             ret = 1;
         } else {
             final float similarity = ngDistance.getDistance(fld, text);
             ret = (similarity >= ((NGramField)field).minScore) ? 1
-                           : field.contentMatch != Status.OPTIONAL ? 0 : -1;
+                               : field.contentMatch == Status.OPTIONAL ? 0 : -1;
         }
         return ret;
     }
@@ -714,20 +881,19 @@ public class NGrams {
 
         return fld.isEmpty() ? ((field.presence == Status.REQUIRED) ? -1 : 0)
                              : (fld.equals(idxText) ? 1
-                                : (field.contentMatch == Status.REQUIRED ? -1
-                                                                         : 0));
+                                : idxText.isEmpty() ? 0
+                                   : (field.contentMatch == Status.REQUIRED ? -1
+                                                                          : 0));
     }
 
-    private static void writeOutput(final String indexName,
+    private static void writeOutput(final Parameters parameters,
                                     final Set<Result> results,
                                     final BufferedWriter writer)
                                                             throws IOException {
-        assert indexName != null;
+        assert parameters != null;
         assert results != null;
         assert writer != null;
 
-        final NGInstance instance = Instances.getInstance(indexName);
-        final Parameters parameters = instance.getParameters();
         boolean first = true;
 
         writer.newLine();
@@ -742,37 +908,27 @@ public class NGrams {
     }
 
     private static void usage() {
-        System.err.println("Usage: NGrams (config|index|search1|search2)" +
-          /*"\n\n   config <indexPath> <indexAlias> <confFile> [<confFileEncoding>] - add an index configuration file." +
+        System.err.println("Usage: NGrams (index|search1|search2)" +
+          "\n\n   index <indexPath> <confFile> <confFileEncoding> <inFile> <inFileEncoding> - index a list of documentes." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +
-          "\n       <confFile> - xml configuration file. See documentation for format." +
-          "\n       <confFileEncoding> - configuration file character encoding." + */
-          "\n\n   index <indexName> <inFile> <inFileEncoding> - index a list of documentes." +
-          "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
-          "\n       <indexName> - Lucene index name as defined in the configuration file" +
           "\n       <inFile> - input file. See format bellow" +
           "\n       <inFileEncoding> - input file encoding" +
-          "\n\n   search1 <indexName> <inFile> <inFileEncoding> <outFile> [<outFileEncoding>] - find similar documents." +
+          "\n\n   search1 <indexPath> <confFile> <confFileEncoding> <inFile> <inFileEncoding> <outFile> [<outFileEncoding>] - find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
-          "\n       <indexName> - Lucene index name as defined in the configuration file" +
           "\n       <inFile> - input file. See format bellow" +
           "\n       <inFileEncoding> - input file encoding" +
           "\n       <outFile> - output file. See format bellow" +
           "\n       [<outFileEncoding>] - output file encoding. Default = UTF-8" +
-          "\n\n   search2 <indexName> <text> - find similar documents." +
+          "\n\n   search2 <indexPath> <confFile> <confFileEncoding> <text> [--original]- find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
-          "\n       <indexAlias> - nickname of the index" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
-          "\n       <indexName> - Lucene index name as defined in the configuration file" +
           "\n       <text> - text used to find documents" +
+          "\n       [--json] - if present the output type will be json otherwise peped text" +
           "\n\nFormat of input file <inFile> line:  <id>|<ngram index/search text>|<content>|...|<content>" +
           "\nFormat of output file line: <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>\n");
 
@@ -790,36 +946,33 @@ public class NGrams {
                                                   SAXException {
         final long startTime = new GregorianCalendar().getTimeInMillis();
 
-        if (args.length < 3) {
+        if (args.length < 4) {
             usage();
         }
-        if (args[0].equals("config")) {
-            if (args.length < 4) {
+
+        final NGIndex index = new NGIndex("dummy", args[1]);
+        final NGSchema schema = new NGSchema("dummy", args[2], args[3]);
+
+        if (args[0].equals("index")) {
+            if (args.length != 4+2) {
                 usage();
             }
-            final String encoding = (args.length == 5) ? args[4] : "UTF-8";
-            Instances.addInstance(args[1], args[2], args[3], encoding);
-        } else if (args[0].equals("index")) {
-            if (args.length != 4+4) {
-                usage();
-            }
-            Instances.addInstance(args[1], args[2], args[3], args[4]);
-            index(args[4+1], args[4+2], args[4+3]);
+            index(index, schema, args[3+1], args[3+2]);
             System.out.println("Indexing has finished.");
         } else if (args[0].equals("search1")) {
-            if (args.length < 4+5) {
-                usage();
-            }
-            final String encoding = (args.length == 4+6) ? args[4+5] : "UTF-8";
-            Instances.addInstance(args[1], args[2], args[3], args[4]);
-            search(args[4+1], args[4+2], args[4+3], args[4+4], encoding);
-            System.out.println("Searching has finished.");
-        } else if (args[0].equals("search2")) {
             if (args.length < 4+3) {
                 usage();
             }
-            Instances.addInstance(args[1], args[2], args[3], args[4]);
-            final Set<String> set = search(args[4+1], args[4+2], false);
+            final String encoding = (args.length == 4+4) ? args[4+3] : "UTF-8";
+            search(index, schema, args[3+1], args[3+2], args[3+3], encoding);
+            System.out.println("Searching has finished.");
+        } else if (args[0].equals("search2")) {
+            if (args.length < 4+1) {
+                usage();
+            }
+            final boolean original = 
+                          (args.length > 4+1) && args[4+1].equals("--original");
+            final Set<String> set = search(index, schema, args[4], original);
             if (set.isEmpty()) {
                 System.out.println("No result was found.");
             } else {

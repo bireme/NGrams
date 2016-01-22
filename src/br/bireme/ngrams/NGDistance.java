@@ -34,20 +34,20 @@ public class NGDistance {
         System.err.println("usage: NGDistance <str1> <str2> [-normalize]");
         System.exit(1);
     }
-    
+
     public static void main(final String[] args) throws IOException {
-System.out.println("args.length=" + args.length);        
+//System.out.println("args.length=" + args.length);
         if (args.length < 2) {
             usage();
         }
         final String str1;
         final String str2;
-        
+
         if (args.length > 2) {
             if (args[2].equals("-normalize")) {
-                str1 = Tools.limitSize(Tools.normalize(args[0]), 
+                str1 = Tools.limitSize(Tools.normalize(args[0]),
                                                        MAX_NG_TEXT_SIZE).trim();
-                str2 = Tools.limitSize(Tools.normalize(args[1]), 
+                str2 = Tools.limitSize(Tools.normalize(args[1]),
                                                        MAX_NG_TEXT_SIZE).trim();
             } else {
                 str1 = null;

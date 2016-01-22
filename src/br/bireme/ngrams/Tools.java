@@ -64,19 +64,27 @@ public class Tools {
             if (terms != null) {
                 final TermsEnum tenum = terms.iterator();
                 int pos = 0;
-
+                // PostingsEnum penum = null;
+                
                 while (true) {
                     final BytesRef br = tenum.next();
                     if (br == null) {
                         break;
                     }
-                    System.out.println((++pos) + ") term =[" + br.utf8ToString() 
-                                                                         + "]");
+                    System.out.println((++pos) + ") term=[" + br.utf8ToString()
+                                                                        + "] ");
+                    /*
+                    penum = tenum.postings(penum, PostingsEnum.OFFSETS);
+                    while (penum.nextDoc() != PostingsEnum.NO_MORE_DOCS) {
+                        System.out.print(" startOffset=" + penum.startOffset());
+                        System.out.println(" endOffset:" + penum.endOffset());
+                    }
+                    */
                 }
             }
         }
     }
-    
+
     public static void showTokens(final Analyzer analyzer,
                                   final String fieldName,
                                   final String text) throws IOException {
@@ -86,14 +94,14 @@ public class Tools {
 
         tokenStream.reset();
         while (tokenStream.incrementToken()) {
-            //int startOffset = offsetAttribute.startOffset();
-            //int endOffset = offsetAttribute.endOffset();
+            int startOffset = offsetAttribute.startOffset();
+            int endOffset = offsetAttribute.endOffset();
             final String term = charTermAttribute.toString();
-            
-            System.out.println(term);
+
+            System.out.println(term + " [" + startOffset + "," + endOffset + "]");
         }
     }
-    
+
     /**
      * If the input string len is less or equal to the max size then the output
      * will be the input string, if it is greater then we will take a left
@@ -111,9 +119,9 @@ public class Tools {
         if (maxSize <= 0) {
             throw new IllegalArgumentException("maxSize <= 0");
         }
-        
-        final int len = in.length();        
-        final String ret;        
+
+        final int len = in.length();
+        final String ret;
         if (len <= maxSize) {
             ret = in;
         } else {
@@ -125,18 +133,18 @@ public class Tools {
             final int rightSize = (mThrLen < 2) ? thrLen : (thrLen + 1);
             final int midMidSize = midSize / 2;
             final int midStartPos = midLenSize - midMidSize;
-            
-            ret = in.substring(0, leftSize) + 
+
+            ret = in.substring(0, leftSize) +
                   in.substring(midStartPos, midStartPos + midSize) +
-                  in.substring(len - rightSize);                                                
-        }             
+                  in.substring(len - rightSize);
+        }
         return ret;
     }
-    
+
     public static void CommonLines(final String file1,
                                    final String file1Encoding,
                                    final String file2,
-                                   final String file2Encoding) 
+                                   final String file2Encoding)
                                                             throws IOException {
         if (file1 == null) {
             throw new NullPointerException("file1");
@@ -152,12 +160,12 @@ public class Tools {
         }
         final Charset charset1 = Charset.forName(file1Encoding);
         final Charset charset2 = Charset.forName(file2Encoding);
-        
+
         try (BufferedReader reader1 = Files.newBufferedReader(
                                           new File(file1).toPath(), charset1);
              BufferedReader reader2 = Files.newBufferedReader(
-                                          new File(file2).toPath(), charset2)) {                     
-            
+                                          new File(file2).toPath(), charset2)) {
+
             final Set<String> set = new HashSet<>();
             while (reader1.ready()) {
                 final String line = reader1.readLine().trim();
@@ -173,16 +181,16 @@ public class Tools {
             }
         }
     }
-                
+
     /**
-     * 
+     *
      * @param in input String
      * @return input string with every not digit-alphabetic charater removed,
      *         accents removed and all converted to lower case.
      */
     public static String normalize(final String in) {
         final String ret;
-        
+
         if (in == null) {
             ret = null;
         } else {
@@ -199,30 +207,30 @@ public class Tools {
                     builder.append((char)ch);
                 } else if ((ch >= 48) && (ch <= 57)) { // 0-9
                     wasNumber = true;
-                    builder.append((char)ch);                
+                    builder.append((char)ch);
                 } else if ((idx > 0) && (idx < len - 1)) {
-                    final int after  = aux.charAt(idx + 1);                        
+                    final int after  = aux.charAt(idx + 1);
                     if (wasNumber && (after >= 48) && (after <= 57)) { // 0-9
                         builder.append(' ');
-                    }                    
+                    }
                 }
             }
             ret = builder.toString();
         }
         return ret;
     }
-    
+
     public static float NGDistance(final String str1,
                                    final String str2) {
         return new NGramDistance(3).getDistance(str1, str2);
     }
-    
+
     public static void main(final String[] args) throws IOException {
-        final String iname = "lilacsProd";        
-        
+        final String iname = "lil1";
+
         showTerms(iname, "titulo");
-        
-        
+
+
         /*
         final String str1 = limitSize(normalize(args[0]), 100);
         final String str2 = limitSize(normalize(args[1]), 100);
@@ -233,5 +241,5 @@ public class Tools {
         System.out.println("dist=" + NGDistance(str1, str2) + "|" + str1 + "|" +
                                                                           str2);
         */
-    }    
+    }
 }

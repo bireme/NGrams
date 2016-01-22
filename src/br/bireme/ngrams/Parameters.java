@@ -21,7 +21,9 @@
 
 package br.bireme.ngrams;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -31,18 +33,19 @@ import java.util.TreeSet;
  */
 class Parameters {
     final TreeSet<Score> scores;
-    final SourceField src;
+    final DatabaseField db;
     final IdField id;
     final IndexedNGramField indexed;
     final Set<ExactField> exacts;
     final Set<NGramField> ngrams;
     final Set<RegExpField> regexps;
-    final Set<NoCompareField> nocompare;    
-    final Field[] fields;
-    final int nfields;
-    
+    final Set<NoCompareField> nocompare;
+    final Map<Integer,Field> sfields;  // search (pos,field)
+    final Map<String,Field> nameFields;  // field name (name,field)
+    final int maxIdxFieldPos; // last position into piped expression (index process)
+
     Parameters(final TreeSet<Score> scores,
-               final SourceField src,
+               final DatabaseField db,
                final IdField id,
                final IndexedNGramField indexed,
                final Set<ExactField> exacts,
@@ -50,62 +53,81 @@ class Parameters {
                final Set<RegExpField> regexps,
                final Set<NoCompareField> nocompare) {
         assert scores != null;
-        assert src != null;
+        assert db != null;
         assert id != null;
         assert indexed != null;
         assert exacts != null;
         assert ngrams != null;
         assert regexps != null;
         assert nocompare != null;
-                
-        this.scores = scores;        
-        this.src = src;
+
+        this.scores = scores;
+        this.db = db;
         this.id = id;
         this.indexed = indexed;
         this.exacts = exacts;
         this.ngrams = ngrams;
         this.regexps = regexps;
-        this.nocompare = nocompare;        
-        this.nfields = 3 + exacts.size() + ngrams.size() + regexps.size() 
-                                                             + nocompare.size();
+        this.nocompare = nocompare;
         
-        fields = new Field[nfields];
+        // number of fields
+        final int nfields = 3 + exacts.size() + ngrams.size() + regexps.size()
+                                                             + nocompare.size();        
+        int maxPos = 0;
+
+        sfields = new TreeMap<>();
+        this.nameFields = new TreeMap<>();
         
-        if (src.pos >= nfields) {
-            throw new IllegalArgumentException("source pos >= " + nfields);
-        }
-        fields[src.pos] = src;
-        if (id.pos >= nfields) {
-            throw new IllegalArgumentException("id pos >= " + nfields);
-        }
-        fields[id.pos] = id;
-        if (indexed.pos >= nfields) {
-            throw new IllegalArgumentException("indexed pos >= " + nfields);
-        }
-        fields[indexed.pos] = indexed;
+        maxPos = addField(db, nfields, maxPos);
+        maxPos = addField(id, nfields, maxPos);
+        maxPos = addField(indexed, nfields, maxPos);                        
+        
         for (ExactField exact : exacts) {
-            if (exact.pos >= nfields) {
-                throw new IllegalArgumentException("exact pos >= " + nfields);
-            }
-            fields[exact.pos] = exact;
-        }
+            maxPos = addField(exact, nfields, maxPos);
+        }        
         for (NGramField ngram : ngrams) {
-            if (ngram.pos >= nfields) {
-                throw new IllegalArgumentException("ngram pos >= " + nfields);
-            }
-            fields[ngram.pos] = ngram;
-        }
+            maxPos = addField(ngram, nfields, maxPos);
+        }        
         for (RegExpField regexp : regexps) {
-            if (regexp.pos >= nfields) {
-                throw new IllegalArgumentException("regexp pos >= " + nfields);
-            }
-            fields[regexp.pos] = regexp;
-        }
+            maxPos = addField(regexp, nfields, maxPos);
+        }        
         for (NoCompareField nocomp : nocompare) {
-            if (nocomp.pos >= nfields) {
-                throw new IllegalArgumentException("nocomp pos >= " + nfields);
+            maxPos = addField(nocomp, nfields, maxPos);
+        }                
+        this.maxIdxFieldPos = maxPos;
+        
+        checkFields(nfields);
+    }
+    
+    private int addField(final Field fld,
+                         final int nfields,
+                         final int maxPosition) {
+        assert fld != null;
+        assert nfields > 0;
+        assert maxPosition >= 0;
+        
+        if ((fld.spos >= nfields) || (sfields.containsKey(fld.spos))) {
+            throw new IllegalArgumentException(fld.name + " spos[" 
+                         + fld.spos + "] it out of range or already used");
+        }            
+        sfields.put(fld.spos, fld);                
+        nameFields.put(fld.name, fld);
+                
+        return Integer.max(maxPosition, fld.spos);
+    }
+    
+    private void checkFields(final int nfields) {
+        for (int idx = 0; idx < nfields; idx++) {
+            if (sfields.get(idx) == null) {
+                throw new IllegalArgumentException("missing spos=" + idx);
             }
-            fields[nocomp.pos] = nocomp;
+        }
+        for (Field fld : nameFields.values()) {
+            final String reqField = fld.requiredField;
+            if ((reqField != null) && (!nameFields.containsKey(reqField))) {
+                throw new IllegalArgumentException("invalid requiredField = " 
+                                                                    + reqField);
+            }
         }
     }
 }
