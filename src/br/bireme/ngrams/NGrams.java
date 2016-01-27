@@ -553,14 +553,9 @@ public class NGrams {
         final String id2 = (String)doc.get("id");
         final String id1id2 = (id1.compareTo(id2) <= 0) ?
                                       (id1 + "_" + id2) : (id2 + "_" + id1);
-        if ((matchedFields == 0) && (fields.size() == 3)) { // DatabaseField|IdField|IndexedNGramField            
-            if (id_id.contains(id1id2)) {
-                ret = null;
-            } else {
-                id_id.add(id1id2);
-                ret = new NGrams.Result(param, doc, similarity, score);
-            }
-        } else if (matchedFields > 0) {
+        if (matchedFields <= 0) {
+            ret = null; // no field is matched
+        } else {
             if (checkScore(parameters, param, similarity, matchedFields)) {
                 if (id_id.contains(id1id2)) {
                     ret = null;
@@ -571,8 +566,6 @@ public class NGrams {
             } else {
                 ret = null;
             }
-        } else {
-            ret = null;
         }
         return ret;
     }
