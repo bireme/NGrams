@@ -21,8 +21,8 @@ public class MyDiff {
         try (BufferedReader reader1 = Files.newBufferedReader(
                                           new File(args[0]).toPath(), charset1);
              BufferedReader reader2 = Files.newBufferedReader(
-                                          new File(args[2]).toPath(), charset2)) {                     
-            
+                                          new File(args[2]).toPath(), charset2)) {
+
             final Set<String> set1 = new HashSet<>();
             final Set<String> set2 = new HashSet<>();
             while (reader1.ready()) {
@@ -41,10 +41,10 @@ public class MyDiff {
                 if (set1.contains(e2)) {
                       System.out.println("<>" + e2);
                       set1.remove(e2);
-                      set2.remove(e2); 
+                      set2.remove(e2);
                 }
             }
-            for (String e1: set1) { 
+            for (String e1: set1) {
                 System.out.println("<" + e1);
             }
             for (String e2: set2) {
@@ -52,4 +52,4 @@ public class MyDiff {
             }
         }
     }
-} 
+}
