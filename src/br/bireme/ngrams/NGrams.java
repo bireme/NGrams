@@ -22,6 +22,7 @@
 package br.bireme.ngrams;
 
 import br.bireme.ngrams.Field.Status;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -31,6 +32,7 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -124,8 +126,6 @@ public class NGrams {
 
         final Charset charset = Charset.forName(inFileEncoding);
         final IndexWriter writer = index.getIndexWriter();
-        final Parameters parameters = schema.getParameters();
-        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
         int cur = 0;
 
         try (BufferedReader reader = Files.newBufferedReader(
@@ -137,15 +137,7 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                final String[] split = line.replace(':', ' ').trim()
-                                           .split(" *\\| *", Integer.MAX_VALUE);
-                if (split.length <= parameters.maxIdxFieldPos) {
-                    throw new IOException("invalid number of fields: " + line);
-                }
-                final Document doc = createDocument(flds, split);
-                if (doc != null) {
-                    writer.addDocument(doc);
-                }
+                indexDocument(index, schema, line);
                 if (++cur % 10000 == 0) {
                     System.out.println(">>> " + cur);
                 }
@@ -154,10 +146,84 @@ public class NGrams {
             writer.close();
         }
     }
+    
+    public static void indexDocument(final NGIndex index,
+                                     final NGSchema schema,
+                                     final String pipedDoc) throws IOException {
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }
+        if (pipedDoc == null) {
+            throw new NullPointerException("pipedDoc");
+        }
+        
+        final Parameters parameters = schema.getParameters();
+        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
+        final IndexWriter writer = index.getIndexWriter();
+        
+        final String[] split = pipedDoc.replace(':', ' ').trim()
+                                           .split(" *\\| *", Integer.MAX_VALUE);
+        if (split.length <= parameters.maxIdxFieldPos) {
+            throw new IOException("invalid number of fields: " + pipedDoc);
+        }
+        final Document doc = createDocument(flds, split);
+        if (doc != null) {
+            writer.addDocument(doc);
+        }        
+    }
+    
+    public static String json2pipe(final NGSchema schema,
+                                   final String sjson) throws IOException {
+        if (schema == null) {
+            throw new NullPointerException("parameters");
+        }
+        if (sjson == null) {
+            throw new NullPointerException("sjson");
+        }
 
-    private static Document createDocument(Map<String, br.bireme.ngrams.Field> fields,
-                                           final String[] flds)
-                                                            throws IOException {
+        final String occSeparator = "//@//";
+        final Parameters parameters = schema.getParameters();
+        final ObjectMapper mapper = new ObjectMapper();
+        final Map<String,Object> userData = mapper.readValue(sjson, Map.class);
+        final StringBuilder ret = new StringBuilder();
+        final Map<Integer,br.bireme.ngrams.Field> sfields = parameters.sfields;
+
+        for (int idx = 1; idx <= parameters.maxIdxFieldPos; idx++) {
+            final br.bireme.ngrams.Field fld =  sfields.get(idx);
+
+            ret.append((idx == 1) ? "" : "|");
+            if (fld != null) {
+                final Object obj = userData.get(fld.name);
+                if (obj != null) {
+                    if (obj instanceof String) {
+                        ret.append((String) obj);
+                    } else if (obj instanceof Number) {
+                        ret.append((String) obj);
+                    } else if (obj instanceof List) {
+                        boolean first = true;
+                        for (Object obj2: (List<Object>)obj) {
+                            if (first) {
+                                first = false;
+                            } else {
+                                ret.append(occSeparator);
+                                ret.append((String)obj2);
+                            }
+                        }
+                    } else {
+                        throw new IOException("Illegal json format:" + sjson);
+                    }
+                }
+            }
+        }
+        return ret.toString();
+    }
+
+    private static Document createDocument(
+                               final Map<String, br.bireme.ngrams.Field> fields,
+                               final String[] flds) throws IOException {
         assert fields != null;
         assert flds != null;
 
@@ -178,7 +244,6 @@ public class NGrams {
                     doc.add(new TextField(fname, ncontent, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
-
                 } else if (fld instanceof DatabaseField) {
                     if (names.contains(fname)) {
                         doc = null;
@@ -697,7 +762,7 @@ public class NGrams {
 
         return ret.descendingSet();
     }
-
+    
     private static boolean checkScore(final Parameters parameters,
                                       final String[] param,
                                       final float similarity,
@@ -988,7 +1053,7 @@ public class NGrams {
         if (args.length < 4) {
             usage();
         }
-
+                                
         final NGIndex index = new NGIndex("dummy", args[1]);
         final NGSchema schema = new NGSchema("dummy", args[2], args[3]);
 

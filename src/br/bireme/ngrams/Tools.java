@@ -21,13 +21,17 @@
 
 package br.bireme.ngrams;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.Normalizer;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -224,6 +228,29 @@ public class Tools {
                                    final String str2) {
         return new NGramDistance(3).getDistance(str1, str2);
     }
+    
+   /* public static Map<String, Object> json2Map(final String json) {
+        final String j1 = json.replaceAll("\\{ *'", "{\"");
+        final String j2 = j1.replaceAll("\\: *'", ":\"");
+        final String j3 = j2.replaceAll("\\[ *'", "[\"");
+        final String j4 = j3.replaceAll("\\, *'", ",\"");
+        
+        final String j5 = j4.replaceAll("' *\\:", "\":");
+        final String j6 = j5.replaceAll("' *\\,", "\",");
+        final String j7 = j6.replaceAll("' *\\]", "\"]"); 
+        final String j8 = j7.replaceAll("' *\\}", "\"}");                                        
+        
+        final ObjectMapper mapperObj = new ObjectMapper();
+        Map<String, Object> ret;
+                 
+        try {
+            ret = mapperObj.readValue(j8,
+                            new TypeReference<Map<String,String>>(){});
+        } catch (IOException e) {
+            ret = new HashMap<>();
+        }
+        return ret;
+    }*/
 
     public static void main(final String[] args) throws IOException {
         final String iname = "lil1";
@@ -241,5 +268,10 @@ public class Tools {
         System.out.println("dist=" + NGDistance(str1, str2) + "|" + str1 + "|" +
                                                                           str2);
         */
+        
+       /* final String json = "{'nome':'Heitor', 'parentes':['Karim','Flavio', 'Marilene']}";
+        //final String json = "{\"nome\":\"Heitor\", \"sobrenome\":\"Barbieri\"}";
+        final Map<String, Object> map = json2Map(json);
+        int x = 0; */
     }
 }
