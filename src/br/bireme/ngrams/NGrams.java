@@ -40,7 +40,9 @@ import java.util.regex.Matcher;
 import javax.xml.parsers.ParserConfigurationException;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
@@ -108,14 +110,10 @@ public class NGrams {
 
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final NGIndex index,
-                             final NGSchema schema,
                              final String inFile,
                              final String inFileEncoding) throws IOException {
         if (index == null) {
             throw new NullPointerException("index");
-        }
-        if (schema == null) {
-            throw new NullPointerException("schema");
         }
         if (inFile == null) {
             throw new NullPointerException("inFile");
@@ -124,6 +122,7 @@ public class NGrams {
             throw new NullPointerException("inFileEncoding");
         }
 
+        final NGSchema schema = index.getSchema();
         final Charset charset = Charset.forName(inFileEncoding);
         final IndexWriter writer = index.getIndexWriter();
         int cur = 0;
@@ -146,39 +145,61 @@ public class NGrams {
             writer.close();
         }
     }
-    
-    public static void indexDocument(final NGIndex index,
-                                     final NGSchema schema,
-                                     final String pipedDoc) throws IOException {
+           
+    public static boolean indexDocument(final NGIndex index,
+                                        final NGSchema schema, // other schema can be used
+                                        final String pipedDoc) 
+                                                            throws IOException {
         if (index == null) {
             throw new NullPointerException("index");
         }
         if (schema == null) {
             throw new NullPointerException("schema");
-        }
+        }        
         if (pipedDoc == null) {
             throw new NullPointerException("pipedDoc");
         }
         
         final Parameters parameters = schema.getParameters();
-        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
-        final IndexWriter writer = index.getIndexWriter();
-        
         final String[] split = pipedDoc.replace(':', ' ').trim()
                                            .split(" *\\| *", Integer.MAX_VALUE);
         if (split.length <= parameters.maxIdxFieldPos) {
             throw new IOException("invalid number of fields: " + pipedDoc);
         }
-        final Document doc = createDocument(flds, split);
-        if (doc != null) {
-            writer.addDocument(doc);
+        final String id = split[parameters.id.ipos];
+        if (id.isEmpty()) {
+            throw new IOException("id");
+        }
+        final String dbName = split[parameters.db.ipos];
+        if (dbName.isEmpty()) {
+            throw new IOException("dbName");
         }        
+        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
+        final Document doc = createDocument(flds, split);
+        
+        if (doc != null) {
+            try (IndexWriter writer = index.getIndexWriter()) {
+                final String dbId = Tools.normalize(dbName + id);
+                writer.updateDocument(new Term("db_id", dbId), doc);
+            }
+            //writer.close();
+        }
+                
+        return (doc != null);
     }
     
     public static String json2pipe(final NGSchema schema,
+                                   final String indexName,
+                                   final String id,
                                    final String sjson) throws IOException {
         if (schema == null) {
-            throw new NullPointerException("parameters");
+            throw new NullPointerException("schema");
+        }
+        if (indexName == null) {
+            throw new NullPointerException("indexName");
+        }
+        if (id == null) {
+            throw new NullPointerException("id");
         }
         if (sjson == null) {
             throw new NullPointerException("sjson");
@@ -186,15 +207,20 @@ public class NGrams {
 
         final String occSeparator = "//@//";
         final Parameters parameters = schema.getParameters();
+        final String indexFldName = parameters.db.name;
+        final String idFldName = parameters.id.name;
         final ObjectMapper mapper = new ObjectMapper();
         final Map<String,Object> userData = mapper.readValue(sjson, Map.class);
         final StringBuilder ret = new StringBuilder();
         final Map<Integer,br.bireme.ngrams.Field> sfields = parameters.sfields;
 
-        for (int idx = 1; idx <= parameters.maxIdxFieldPos; idx++) {
+        userData.put(indexFldName, indexName);
+        userData.put(idFldName, id);
+        
+        for (int idx = 0; idx <= parameters.maxIdxFieldPos; idx++) {
             final br.bireme.ngrams.Field fld =  sfields.get(idx);
 
-            ret.append((idx == 1) ? "" : "|");
+            ret.append((idx == 0) ? "" : "|");
             if (fld != null) {
                 final Object obj = userData.get(fld.name);
                 if (obj != null) {
@@ -228,7 +254,10 @@ public class NGrams {
         assert flds != null;
 
         Document doc = checkFieldsPresence(fields, flds, true) 
-                                                         ? new Document(): null;        
+                                                         ? new Document(): null;
+        String dbName = null;
+        String id = null;
+        
         if (doc != null) {
             final Set<String> names = new HashSet<>();
             for (br.bireme.ngrams.Field fld : fields.values()) {
@@ -249,19 +278,18 @@ public class NGrams {
                         doc = null;
                         break;
                     }
-                    final String ncontent = Tools.limitSize(
+                    dbName = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StoredField(fname, ncontent));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
-                                                               content.trim()));
+                    doc.add(new StoredField(fname, dbName));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,dbName));
                 } else if (fld instanceof IdField) {
                     if (names.contains(fname)) {
                         doc = null;
                         break;
                     }
-                    doc.add(new StoredField(fname, content));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
-                                                               content.trim()));
+                    id = content.trim();
+                    doc.add(new StoredField(fname, id));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, id));
                 } else {
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
@@ -271,6 +299,15 @@ public class NGrams {
                 }
                 names.add(fname);
             }
+            // Add field to avoid duplicated documents in the index
+            if (dbName == null) {
+                throw new IOException("dbName");
+            }
+            if (id == null) {
+                throw new IOException("id");
+            }
+            doc.add(new StringField("db_id", Tools.normalize(dbName + "_" + id), 
+                                                                    Store.YES));
         }
         return doc;
     }
@@ -1054,14 +1091,14 @@ public class NGrams {
             usage();
         }
                                 
-        final NGIndex index = new NGIndex("dummy", args[1]);
         final NGSchema schema = new NGSchema("dummy", args[2], args[3]);
-
+        final NGIndex index = new NGIndex("dummy", args[1], schema);
+        
         if (args[0].equals("index")) {
             if (args.length != 4+2) {
                 usage();
             }
-            index(index, schema, args[3+1], args[3+2]);
+            index(index, args[3+1], args[3+2]);
             System.out.println("Indexing has finished.");
         } else if (args[0].equals("search1")) {
             if (args.length < 4+3) {

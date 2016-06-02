@@ -41,14 +41,17 @@ public class NGIndex {
     private final String name;
     private final String indexPath;
     private final Analyzer analyzer;
-
-    public NGIndex(final String name,
-                   final String indexPath) throws IOException {
-        this(name, indexPath, new NGAnalyzer());
-    }
+    private final NGSchema schema;   // schema used to create the index
 
     public NGIndex(final String name,
                    final String indexPath,
+                   final NGSchema schema) throws IOException {
+        this(name, indexPath, schema, new NGAnalyzer());
+    }
+    
+    public NGIndex(final String name,
+                   final String indexPath,
+                   final NGSchema schema,
                    final Analyzer analyzer) throws IOException {
         if (name == null) {
             throw new NullPointerException("name");
@@ -56,12 +59,16 @@ public class NGIndex {
         if (indexPath == null) {
             throw new NullPointerException("indexPath");
         }
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }
         if (analyzer == null) {
             throw new NullPointerException("analyzer");
-        }
+        }        
         this.name = name;
         this.indexPath = new File(indexPath).getCanonicalPath();
-        this.analyzer = analyzer;
+        this.schema = schema;
+        this.analyzer = analyzer;        
     }
 
     public String getName() {
@@ -74,6 +81,10 @@ public class NGIndex {
 
     public IndexSearcher getIndexSearcher() throws IOException {
         return getIndexSearcher(indexPath);
+    }
+    
+    public NGSchema getSchema() {
+        return schema;
     }
 
     public Analyzer getAnalyzer() {
@@ -122,12 +133,9 @@ public class NGIndex {
             return false;
         }
         final NGIndex other = (NGIndex) obj;
-        if (!Objects.equals(this.name, other.name)) {
+        if (!this.name.equals(other.name)) {
             return false;
         }
-        if (!Objects.equals(this.indexPath, other.indexPath)) {
-            return false;
-        }
-        return true;
+        return this.indexPath.equals(other.indexPath);
     }        
 }
