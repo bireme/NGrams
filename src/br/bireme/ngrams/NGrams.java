@@ -355,15 +355,19 @@ public class NGrams {
             ok = true;
         } else {
             final br.bireme.ngrams.Field field = fields.get(fieldName);
-            final int pos = indexing ? field.ipos : field.spos;
-            final String requiredField = field.requiredField;
+            if (field == null) {
+                ok = false;
+            } else {
+                final int pos = indexing ? field.ipos : field.spos;
+                final String requiredField = field.requiredField;
             
-            checked.add(fieldName);
+                checked.add(fieldName);
             
-            ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
-                         : (requiredField == null) ? true
-                    : checkPresence(requiredField, fields, param, checked, 
+                ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
+                        : (requiredField == null) ? true
+                        : checkPresence(requiredField, fields, param, checked, 
                                                                       indexing);
+            }
         }
         return ok;
     }
