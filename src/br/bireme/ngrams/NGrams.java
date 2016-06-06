@@ -136,7 +136,7 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                indexDocument(index, schema, line);
+                indexDocument(index, writer, schema, line);
                 if (++cur % 10000 == 0) {
                     System.out.println(">>> " + cur);
                 }
@@ -147,11 +147,15 @@ public class NGrams {
     }
            
     public static boolean indexDocument(final NGIndex index,
+                                        final IndexWriter writer,
                                         final NGSchema schema, // other schema can be used
                                         final String pipedDoc) 
                                                             throws IOException {
         if (index == null) {
             throw new NullPointerException("index");
+        }
+        if (writer == null) {
+            throw new NullPointerException("writer");
         }
         if (schema == null) {
             throw new NullPointerException("schema");
@@ -178,11 +182,8 @@ public class NGrams {
         final Document doc = createDocument(flds, split);
         
         if (doc != null) {
-            try (IndexWriter writer = index.getIndexWriter()) {
-                final String dbId = Tools.normalize(dbName + id);
-                writer.updateDocument(new Term("db_id", dbId), doc);
-            }
-            //writer.close();
+            final String dbId = Tools.normalize(dbName + id);
+            writer.updateDocument(new Term("db_id", dbId), doc);
         }
                 
         return (doc != null);
