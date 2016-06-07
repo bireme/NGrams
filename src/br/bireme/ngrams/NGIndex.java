@@ -41,17 +41,14 @@ public class NGIndex {
     private final String name;
     private final String indexPath;
     private final Analyzer analyzer;
-    private final NGSchema schema;   // schema used to create the index
-
+    
     public NGIndex(final String name,
-                   final String indexPath,
-                   final NGSchema schema) throws IOException {
-        this(name, indexPath, schema, new NGAnalyzer());
+                   final String indexPath) throws IOException {
+        this(name, indexPath, new NGAnalyzer());
     }
     
     public NGIndex(final String name,
                    final String indexPath,
-                   final NGSchema schema,
                    final Analyzer analyzer) throws IOException {
         if (name == null) {
             throw new NullPointerException("name");
@@ -59,15 +56,11 @@ public class NGIndex {
         if (indexPath == null) {
             throw new NullPointerException("indexPath");
         }
-        if (schema == null) {
-            throw new NullPointerException("schema");
-        }
         if (analyzer == null) {
             throw new NullPointerException("analyzer");
         }        
         this.name = name;
         this.indexPath = new File(indexPath).getCanonicalPath();
-        this.schema = schema;
         this.analyzer = analyzer;        
     }
 
@@ -83,10 +76,6 @@ public class NGIndex {
         return getIndexSearcher(indexPath);
     }
     
-    public NGSchema getSchema() {
-        return schema;
-    }
-
     public Analyzer getAnalyzer() {
         return analyzer;
     }

@@ -110,10 +110,14 @@ public class NGrams {
 
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final NGIndex index,
+                             final NGSchema schema,
                              final String inFile,
                              final String inFileEncoding) throws IOException {
         if (index == null) {
             throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
         }
         if (inFile == null) {
             throw new NullPointerException("inFile");
@@ -122,7 +126,6 @@ public class NGrams {
             throw new NullPointerException("inFileEncoding");
         }
 
-        final NGSchema schema = index.getSchema();
         final Charset charset = Charset.forName(inFileEncoding);
         final IndexWriter writer = index.getIndexWriter();
         int cur = 0;
@@ -148,7 +151,7 @@ public class NGrams {
            
     public static boolean indexDocument(final NGIndex index,
                                         final IndexWriter writer,
-                                        final NGSchema schema, // other schema can be used
+                                        final NGSchema schema,
                                         final String pipedDoc) 
                                                             throws IOException {
         if (index == null) {
@@ -1097,13 +1100,13 @@ public class NGrams {
         }
                                 
         final NGSchema schema = new NGSchema("dummy", args[2], args[3]);
-        final NGIndex index = new NGIndex("dummy", args[1], schema);
+        final NGIndex index = new NGIndex("dummy", args[1]);
         
         if (args[0].equals("index")) {
             if (args.length != 4+2) {
                 usage();
             }
-            index(index, args[3+1], args[3+2]);
+            index(index, schema, args[3+1], args[3+2]);
             System.out.println("Indexing has finished.");
         } else if (args[0].equals("search1")) {
             if (args.length < 4+3) {
