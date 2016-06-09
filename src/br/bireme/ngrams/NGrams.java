@@ -239,8 +239,8 @@ public class NGrams {
                                 first = false;
                             } else {
                                 ret.append(occSeparator);
-                                ret.append((String)obj2);
                             }
+                            ret.append((String)obj2);
                         }
                     } else {
                         throw new IOException("Illegal json format:" + sjson);
