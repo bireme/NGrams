@@ -106,14 +106,14 @@ class Parameters {
         assert nfields > 0;
         assert maxPosition >= 0;
         
-        if ((fld.spos >= nfields) || (sfields.containsKey(fld.spos))) {
+        if ((fld.pos >= nfields) || (sfields.containsKey(fld.pos))) {
             throw new IllegalArgumentException(fld.name + " spos[" 
-                         + fld.spos + "] it out of range or already used");
+                         + fld.pos + "] it out of range or already used");
         }            
-        sfields.put(fld.spos, fld);                
+        sfields.put(fld.pos, fld);                
         nameFields.put(fld.name, fld);
                 
-        return Integer.max(maxPosition, fld.spos);
+        return Integer.max(maxPosition, fld.pos);
     }
     
     private void checkFields(final int nfields) {

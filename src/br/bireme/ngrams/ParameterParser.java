@@ -44,16 +44,16 @@ import org.xml.sax.SAXException;
  *      <score minValue="0.9" minFields="1"/>
  *      <score minValue="0.7" minFields="3"/>
  *      <score minValue="0.6" minFields="4"/>
- *      <databaseField ipos=0 spos="0"/>
- *      <idField ipos=2 spos="1"/>
- *      <idxNGramField ipos=4 name="titulo" spos="3" minScore="0.6"/>
- *      <nGramField ipos=5 spos="2" name="autores" minScore="0.7" status="OPTIONAL" match="REQUIRED" requiredField="titulo"/>
- *      <exactField ipos=6 spos="6" name="volume" status="MAX_SCORE"/>
- *      <exactField ipos=8 spos="9" name="numero" status="OPTIONAL" match="REQUIRED"/>
- *      <exactField ipos=12 spos="4" name="ano" status="REQUIRED" match="OPTIONAL" />
- *      <exactField ipos=13 spos="5" name="pais" status="OPTIONAL" requiredField="numero" match="MAX_SCORE" values="BR,US"/>
- *      <regExpField ipos=15 spos="7" name="paginas" status="OPTIONAL" requiredField="numero" pattern="(\d+)" groupNum="1"/>
- *      <noCompField ipos=20 spos="8" name="base de dados"/>
+ *      <databaseField pos="0"/>
+ *      <idField pos="2"/>
+ *      <idxNGramField pos="4" name="titulo" minScore="0.6"/>
+ *      <nGramField pos="5" name="autores" minScore="0.7" status="OPTIONAL" match="REQUIRED" requiredField="titulo"/>
+ *      <exactField pos="6" name="volume" status="MAX_SCORE"/>
+ *      <exactField pos="8" name="numero" status="OPTIONAL" match="REQUIRED"/>
+ *      <exactField pos="12" name="ano" status="REQUIRED" match="OPTIONAL" />
+ *      <exactField pos="13" name="pais" status="OPTIONAL" requiredField="numero" match="MAX_SCORE" values="BR,US"/>
+ *      <regExpField pos="15" name="paginas" status="OPTIONAL" requiredField="numero" pattern="(\d+)" groupNum="1"/>
+ *      <noCompField pos="20" name="base de dados"/>
  *  </config>
 
  * @author Heitor Barbieri
@@ -115,16 +115,11 @@ class ParameterParser {
             throw new IOException("'databaseField' is not an Element node");
         }
         final Element eElement = (Element) nNode;
-        final String ipos = eElement.getAttribute("ipos").trim();
-        if (ipos.isEmpty()) {
-            throw new IOException("missing 'ipos' attribute");
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
+            throw new IOException("missing 'pos' attribute");
         }
-        final String spos = eElement.getAttribute("spos").trim();
-        if (spos.isEmpty()) {
-            throw new IOException("missing 'spos' attribute");
-        }
-        final DatabaseField src = new DatabaseField(Integer.parseInt(ipos),
-                                                    Integer.parseInt(spos));
+        final DatabaseField src = new DatabaseField(Integer.parseInt(pos));
         return src;
     }
 
@@ -140,16 +135,11 @@ class ParameterParser {
             throw new IOException("'idfield' is not an Element node");
         }
         final Element eElement = (Element) nNode;
-        final String ipos = eElement.getAttribute("ipos").trim();
-        if (ipos.isEmpty()) {
-            throw new IOException("missing 'ipos' attribute");
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
+            throw new IOException("missing 'pos' attribute");
         }
-        final String spos = eElement.getAttribute("spos").trim();
-        if (spos.isEmpty()) {
-            throw new IOException("missing 'spos' attribute");
-        }
-        final IdField id = new IdField(Integer.parseInt(ipos),
-                                       Integer.parseInt(spos));
+        final IdField id = new IdField(Integer.parseInt(pos));
         return id;
     }
 
@@ -170,13 +160,9 @@ class ParameterParser {
         if (name.isEmpty()) {
             throw new IOException("missing 'name' attribute");
         }
-        final String ipos = eElement.getAttribute("ipos").trim();
-        if (ipos.isEmpty()) {
-            throw new IOException("missing 'ipos' attribute");
-        }
-        final String spos = eElement.getAttribute("spos").trim();
-        if (spos.isEmpty()) {
-            throw new IOException("missing 'spos' attribute");
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
+            throw new IOException("missing 'pos' attribute");
         }
         final String minScore = eElement.getAttribute("minScore").trim();
         if (minScore.isEmpty()) {
@@ -184,8 +170,7 @@ class ParameterParser {
         }
         final IndexedNGramField idxNGram = new IndexedNGramField(
               name,
-              Integer.parseInt(ipos),
-              Integer.parseInt(spos),
+              Integer.parseInt(pos),
               Float.parseFloat(minScore));
         return idxNGram;
     }
@@ -206,13 +191,9 @@ class ParameterParser {
             if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String ipos = eElement.getAttribute("ipos").trim();
-            if (ipos.isEmpty()) {
-                throw new IOException("missing 'ipos' attribute");
-            }
-            final String spos = eElement.getAttribute("spos").trim();
-            if (spos.isEmpty()) {
-                throw new IOException("missing 'spos' attribute");
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
+                throw new IOException("missing 'pos' attribute");
             }
             final Status status;
             final String statusStr = eElement.getAttribute("status").trim();
@@ -262,8 +243,7 @@ class ParameterParser {
 
             final NGramField nGram = new NGramField(
                   name,
-                  Integer.parseInt(ipos),
-                  Integer.parseInt(spos),
+                  Integer.parseInt(pos),
                   status,
                   content,
                   match,
@@ -290,13 +270,9 @@ class ParameterParser {
             if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String ipos = eElement.getAttribute("ipos").trim();
-            if (ipos.isEmpty()) {
-                throw new IOException("missing 'ipos' attribute");
-            }
-            final String spos = eElement.getAttribute("spos").trim();
-            if (spos.isEmpty()) {
-                throw new IOException("missing 'spos' attribute");
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
+                throw new IOException("missing 'pos' attribute");
             }
             final Status status;
             final String statusStr = eElement.getAttribute("status").trim();
@@ -349,8 +325,7 @@ class ParameterParser {
             }
             final RegExpField regexpf = new RegExpField(
                   name,
-                  Integer.parseInt(ipos),
-                  Integer.parseInt(spos),
+                  Integer.parseInt(pos),
                   status,
                   content,
                   match,
@@ -378,13 +353,9 @@ class ParameterParser {
             if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String ipos = eElement.getAttribute("ipos").trim();
-            if (ipos.isEmpty()) {
-                throw new IOException("missing 'ipos' attribute");
-            }
-            final String spos = eElement.getAttribute("spos").trim();
-            if (spos.isEmpty()) {
-                throw new IOException("missing 'spos' attribute");
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
+                throw new IOException("missing 'pos' attribute");
             }
             final Status status;
             final String statusStr = eElement.getAttribute("status").trim();
@@ -429,8 +400,7 @@ class ParameterParser {
                                                                         .trim();
             final ExactField def = new ExactField(
                   name,
-                  Integer.parseInt(ipos),
-                  Integer.parseInt(spos),
+                  Integer.parseInt(pos),
                   status,
                   content,
                   match,
@@ -456,17 +426,12 @@ class ParameterParser {
             if (name.isEmpty()) {
                 throw new IOException("missing 'name' attribute");
             }
-            final String ipos = eElement.getAttribute("ipos").trim();
-            if (ipos.isEmpty()) {
-                throw new IOException("missing 'ipos' attribute");
-            }
-            final String spos = eElement.getAttribute("spos").trim();
-            if (spos.isEmpty()) {
-                throw new IOException("missing 'spos' attribute");
+            final String pos = eElement.getAttribute("pos").trim();
+            if (pos.isEmpty()) {
+                throw new IOException("missing 'pos' attribute");
             }
             final NoCompareField def = new NoCompareField(name,
-                                                        Integer.parseInt(ipos),
-                                                        Integer.parseInt(spos));
+                                                        Integer.parseInt(pos));
             noCompareSet.add(def);
         }
         return noCompareSet;

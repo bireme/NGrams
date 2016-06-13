@@ -44,18 +44,15 @@ class Field {
     final Set<String> content; // contents that require max score if this field is/is_not equals to
     final Status contentMatch; // this field has to be equal to the indexed one
     final String requiredField;// name of another field which is required by this field or null if not
-    final int ipos;            // position inside line A|B|C|D|...|H (index piped expression/file)
-    final int spos;            // position inside line A|B|C|D|...|H (search piped expression/file)
+    final int pos;            // position inside line A|B|C|D|...|H (piped expression/file)
 
     Field(final String name,
-          final int ipos,
-          final int spos) {
-        this(name, ipos, spos, Status.OPTIONAL, null, Status.OPTIONAL, null);
+          final int pos) {
+        this(name, pos, Status.OPTIONAL, null, Status.OPTIONAL, null);
     }
 
     Field(final String name,
-          final int ipos,
-          final int spos,
+          final int pos,
           final Status presence,
           final Set<String> content,
           final Status contentMatch,
@@ -63,10 +60,7 @@ class Field {
         if (name == null) {
             throw new NullPointerException("name");
         }
-        if (ipos < 0) {
-            throw new IllegalArgumentException("pos < 0");
-        }
-        if (spos < 0) {
+        if (pos < 0) {
             throw new IllegalArgumentException("pos < 0");
         }
         this.name = name;
@@ -75,14 +69,13 @@ class Field {
         this.contentMatch = (contentMatch == null) ? Status.OPTIONAL
                                                    : contentMatch;
         this.requiredField = requiredField;
-        this.ipos = ipos;
-        this.spos = spos;
+        this.pos = pos;
     }
 
     @Override
     public int hashCode() {
         int hash = 7;
-        hash = 37 * hash + this.ipos + this.spos;
+        hash = 37 * hash + this.pos;
         return hash;
     }
 
@@ -96,50 +89,45 @@ class Field {
         }
         final Field other = (Field) obj;
 
-        return ((this.ipos == other.ipos) && (this.spos == other.spos));
+        return (this.pos == other.pos);
     }
 }
 
 class IdField extends Field {
     final static String FNAME = "id";
-    IdField(final int ipos,
-            final int spos) {
-        super(FNAME, ipos, spos, Status.REQUIRED, null, Status.OPTIONAL, null);
+    IdField(final int pos) {
+        super(FNAME, pos, Status.REQUIRED, null, Status.OPTIONAL, null);
     }
 }
 
 class DatabaseField extends Field {
     final static String FNAME = "database";
-    DatabaseField(final int ipos,
-                  final int spos) {
-        super(FNAME, ipos, spos, Field.Status.REQUIRED, null, 
+    DatabaseField(final int pos) {
+        super(FNAME, pos, Field.Status.REQUIRED, null, 
                                                    Field.Status.OPTIONAL, null);
     }
 }
 
 class NoCompareField extends Field {
     NoCompareField(final String name,
-                   final int ipos,
-                   final int spos) {
-        super(name, ipos, spos, Status.OPTIONAL, null, Status.OPTIONAL, null);
+                   final int pos) {
+        super(name, pos, Status.OPTIONAL, null, Status.OPTIONAL, null);
     }
 }
 
 class ExactField extends Field {
     ExactField(final String name,
                final Set<String> content,
-               final int ipos,
-               final int spos) {
-        this(name, ipos, spos, Status.OPTIONAL, content, Status.OPTIONAL, null);
+               final int pos) {
+        this(name, pos, Status.OPTIONAL, content, Status.OPTIONAL, null);
     }
     ExactField(final String name,
-               final int ipos,
-               final int spos, 
+               final int pos,
                final Status presence,
                final Set<String> content,
                final Status contentMatch,
                final String requiredField) {
-        super(name, ipos, spos, presence, content, contentMatch, requiredField);
+        super(name, pos, presence, content, contentMatch, requiredField);
     }
 }
 
@@ -148,25 +136,23 @@ class RegExpField extends Field {
     final int groupNum;
 
     RegExpField(final String name,
-                final int ipos,
-                final int spos,
+                final int pos,
                 final Set<String> content,
                 final Status contentMatch,
                 final String regularExpression,
                 final int groupNumber) {
-        this(name, ipos, spos, Status.OPTIONAL, content, contentMatch, null,
+        this(name, pos, Status.OPTIONAL, content, contentMatch, null,
                                                 regularExpression, groupNumber);
     }
     RegExpField(final String name,
-                final int ipos,
-                final int spos,
+                final int pos,
                 final Status presence,
                 final Set<String> content,
                 final Status contentMatch,
                 final String requiredField,
                 final String pattern,
                 final int groupNumber) {
-        super(name, ipos, spos, presence, content, contentMatch, requiredField);
+        super(name, pos, presence, content, contentMatch, requiredField);
         if (pattern == null) {
             throw new NullPointerException("pattern");
         }
@@ -182,10 +168,9 @@ class IndexedNGramField extends Field {
     final float minScore;
 
     IndexedNGramField(final String name,
-                      final int ipos,
-                      final int spos,
+                      final int pos,
                       final float minScore) {
-        super(name, ipos, spos, Status.REQUIRED, null, Status.OPTIONAL, null);
+        super(name, pos, Status.REQUIRED, null, Status.OPTIONAL, null);
         if ((minScore < 0) || (minScore > 1)) {
             throw new IllegalArgumentException("minScore: " + minScore
                                                                     + " [0,1]");
@@ -198,23 +183,21 @@ class NGramField extends Field {
     final float minScore;
 
     NGramField(final String name,
-               final int ipos,
-               final int spos,
+               final int pos,
                final Status presence,
                final Set<String> content,
                final Status contentMatch,
                final float minScore) {
-        this(name, ipos, spos, presence, content, contentMatch, null, minScore);
+        this(name, pos, presence, content, contentMatch, null, minScore);
     }
     NGramField(final String name,
-               final int ipos,
-               final int spos,
+               final int pos,
                final Status presence,
                final Set<String> content,
                final Status contentMatch,
                final String requiredField,
                final float minScore) {
-        super(name, ipos, spos, presence, content, contentMatch, requiredField);
+        super(name, pos, presence, content, contentMatch, requiredField);
         if ((minScore < 0) || (minScore > 1)) {
             throw new IllegalArgumentException("minScore: " + minScore
                                                                     + " [0,1]");

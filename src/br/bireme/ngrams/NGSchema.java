@@ -66,8 +66,8 @@ public class NGSchema {
         this.namesPos = new TreeMap<>();
 
         for (Field field : parameters.sfields.values()) {
-            posNames.put(field.spos, field.name);
-            namesPos.put(field.name, field.spos);
+            posNames.put(field.pos, field.name);
+            namesPos.put(field.name, field.pos);
         }
     }
 
@@ -108,7 +108,7 @@ public class NGSchema {
             builder.append("\"name\":\"");
             builder.append(fld.name);
             builder.append("\",\"pos\":");
-            builder.append(fld.spos);
+            builder.append(fld.pos);
             builder.append(",\"type\":\"");
             if (fld instanceof IdField) {
                 builder.append("idField");
