@@ -463,8 +463,16 @@ public class NGrams {
         final Set<String> id_id = new HashSet<>();
         final Set<Result> results = new HashSet<>();
 
-        searchRaw(parameters, searcher, analyzer, ngDistance, text, id_id,
+        final String[] split = text.replace(':', ' ').trim()
+                                           .split(" *\\| *", Integer.MAX_VALUE);
+        if (split.length != parameters.nameFields.size()) {
+            throw new IOException("invalid number of fields: " + text);
+        }
+
+        if (checkFieldsPresence(parameters.nameFields,split)) {
+            searchRaw(parameters, searcher, analyzer, ngDistance, text, id_id,
                                                                        results);
+        }
         searcher.getIndexReader().close();
         
         return original ? results2pipeFull(parameters, results)
@@ -655,13 +663,14 @@ public class NGrams {
         
         final String id1 = param[parameters.id.pos];
         final String id2 = (String)doc.get("id");
-        final String id1id2 = (id1.compareTo(id2) <= 0) ?
-                                      (id1 + "_" + id2) : (id2 + "_" + id1);
+        final String id1id2 = (id1.compareTo(id2) < 0) ? (id1 + "_" + id2) :
+                              (id1.compareTo(id2) > 0) ? (id2 + "_" + id1) : null;
+        
         if (matchedFields <= 0) {
             ret = null; // document is reject (one of its fields does not follow schema
         } else {
             if (checkScore(parameters, param, similarity, matchedFields)) {
-                if (id_id.contains(id1id2)) {
+                if ((id1id2 == null) || (id_id.contains(id1id2))) {
                     ret = null;
                 } else {
                     id_id.add(id1id2);
@@ -684,11 +693,10 @@ public class NGrams {
         for (Result result : results) {
             final String[] param = result.param;
             final Document doc = result.doc;
-            final String itext = (String)doc.get(parameters.indexed.name).
-                                 replace('|', '!');
-            final String stext = Tools.limitSize(Tools.normalize(
-                           param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).
-                           trim().replace('|', '!');
+            final String itext = (String)doc.get(parameters.indexed.name + 
+                                            "~notnormalized").replace('|', '!');
+            final String stext = param[parameters.indexed.pos].trim()
+                                                             .replace('|', '!');
             final String id1 = param[parameters.id.pos];
             final String id2 = (String)doc.get("id");
             final String src1 = param[parameters.db.pos];
@@ -922,6 +930,11 @@ public class NGrams {
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
+        } else if (field instanceof DatabaseField) {
+            final String nfld = Tools.limitSize(Tools.normalize(fld),
+                                                       MAX_NG_TEXT_SIZE).trim();
+            final String idxText = (String)doc.get(field.name);
+            ret = (nfld.compareTo(idxText) == 0) ? 0 : -1;
         } else {
             ret = 0;
         }
@@ -1083,7 +1096,7 @@ public class NGrams {
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <text> - text used to find documents" +
-          "\n       [--json] - if present the output type will be json otherwise peped text" +
+          "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
           "\n\nFormat of input file <inFile> line:  <id>|<ngram index/search text>|<content>|...|<content>" +
           "\nFormat of output file line: <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>\n");
 
