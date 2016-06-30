@@ -253,9 +253,11 @@ public class Tools {
     }*/
 
     public static void main(final String[] args) throws IOException {
-        final String iname = "lil1";
+        final String iname = "/home/heitor/Projetos/DeDup/work/lilacs_Sas";
 
-        showTerms(iname, "titulo");
+        //showTerms(iname, "titulo_artigo");
+        final Analyzer analyzer = new NGAnalyzer(3);
+        showTokens(analyzer, "titulo_artigo", "xx ");
 
 
         /*

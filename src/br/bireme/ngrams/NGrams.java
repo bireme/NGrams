@@ -284,7 +284,8 @@ public class NGrams {
                     dbName = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StoredField(fname, dbName));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,dbName));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                               content.trim()));
                 } else if (fld instanceof IdField) {
                     if (names.contains(fname)) {
                         doc = null;
@@ -424,8 +425,8 @@ public class NGrams {
                 }
 
                 results.clear();
-                final String[] split = line.replace(':', ' ').trim()
-                                           .split(" *\\| *", Integer.MAX_VALUE);
+                final String tline = line.replace(':', ' ').trim();
+                final String[] split = tline.split(" *\\| *", Integer.MAX_VALUE);
                 if (split.length != parameters.nameFields.size()) {
                     throw new IOException("invalid number of fields: " + line);
                 }
@@ -463,14 +464,14 @@ public class NGrams {
         final Set<String> id_id = new HashSet<>();
         final Set<Result> results = new HashSet<>();
 
-        final String[] split = text.replace(':', ' ').trim()
-                                           .split(" *\\| *", Integer.MAX_VALUE);
+        final String ttext = text.replace(':', ' ').trim();
+        final String[] split = ttext.split(" *\\| *", Integer.MAX_VALUE);
         if (split.length != parameters.nameFields.size()) {
             throw new IOException("invalid number of fields: " + text);
         }
 
         if (checkFieldsPresence(parameters.nameFields,split)) {
-            searchRaw(parameters, searcher, analyzer, ngDistance, text, id_id,
+            searchRaw(parameters, searcher, analyzer, ngDistance, ttext, id_id,
                                                                        results);
         }
         searcher.getIndexReader().close();
