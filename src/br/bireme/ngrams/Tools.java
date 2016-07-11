@@ -21,24 +21,21 @@
 
 package br.bireme.ngrams;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.Normalizer;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.SlowCompositeReaderWrapper;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.spell.NGramDistance;
@@ -63,8 +60,13 @@ public class Tools {
         try (Directory directory = FSDirectory.open(
                 new File(indexName).toPath())) {
             final DirectoryReader ireader = DirectoryReader.open(directory);
-            final Terms terms = SlowCompositeReaderWrapper.wrap(ireader)
-                    .terms(fieldName);
+            final List<LeafReaderContext> leaves = ireader.leaves();
+            if (leaves.isEmpty()) {
+                throw new IOException("empty leaf readers list");
+            }
+            final Terms terms = leaves.get(0).reader().terms(fieldName);
+            /*final Terms terms = SlowCompositeReaderWrapper.wrap(ireader)
+                    .terms(fieldName);*/
             if (terms != null) {
                 final TermsEnum tenum = terms.iterator();
                 int pos = 0;
@@ -253,7 +255,7 @@ public class Tools {
     }*/
 
     public static void main(final String[] args) throws IOException {
-        final String iname = "/home/heitor/Projetos/DeDup/work/lilacs_Sas";
+        final String iname = "/home/heitor/Projetos/NGrams/lilacs_Sas";
 
         //showTerms(iname, "titulo_artigo");
         final Analyzer analyzer = new NGAnalyzer(3);
