@@ -185,8 +185,7 @@ public class NGrams {
         final Document doc = createDocument(flds, split);
         
         if (doc != null) {
-            final String dbId = Tools.normalize(dbName + id);
-            writer.updateDocument(new Term("db_id", dbId), doc);
+            writer.addDocument(doc);
         }
                 
         return (doc != null);
