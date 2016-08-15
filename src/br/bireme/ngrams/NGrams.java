@@ -166,13 +166,13 @@ public class NGrams {
         if (pipedDoc == null) {
             throw new NullPointerException("pipedDoc");
         }
-        
         final Parameters parameters = schema.getParameters();
-        final String[] split = pipedDoc.replace(':', ' ').trim()
-                                           .split(" *\\| *", Integer.MAX_VALUE);
-        if (split.length <= parameters.maxIdxFieldPos) {
+        if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos+1) {
             throw new IOException("invalid number of fields: " + pipedDoc);
         }
+        
+        final String[] split = pipedDoc.replace(':', ' ').trim()
+                                           .split(" *\\| *", Integer.MAX_VALUE);
         final String id = split[parameters.id.pos];
         if (id.isEmpty()) {
             throw new IOException("id");

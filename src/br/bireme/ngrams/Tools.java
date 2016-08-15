@@ -225,6 +225,20 @@ public class Tools {
         }
         return ret;
     }
+    
+    public static int countOccurrences(final String in, 
+                                       final char needle) {        
+        int count = 0;
+        
+        if (in != null) {
+            for (int i=0; i < in.length(); i++) {
+                if (in.charAt(i) == needle) {
+                    count++;
+                }
+            }
+        }    
+        return count;
+    }
 
     public static float NGDistance(final String str1,
                                    final String str2) {
