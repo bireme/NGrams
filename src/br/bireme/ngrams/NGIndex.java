@@ -43,8 +43,9 @@ public class NGIndex {
     private final Analyzer analyzer;
     
     public NGIndex(final String name,
-                   final String indexPath) throws IOException {
-        this(name, indexPath, new NGAnalyzer());
+                   final String indexPath,
+                   final boolean search) throws IOException {
+        this(name, indexPath, new NGAnalyzer(search));
     }
     
     public NGIndex(final String name,

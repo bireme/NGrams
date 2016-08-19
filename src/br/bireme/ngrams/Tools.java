@@ -272,9 +272,8 @@ public class Tools {
         final String iname = "/home/heitor/Projetos/NGrams/lilacs_Sas";
 
         //showTerms(iname, "titulo_artigo");
-        final Analyzer analyzer = new NGAnalyzer(3);
+        final Analyzer analyzer = new NGAnalyzer(3, false);
         showTokens(analyzer, "titulo_artigo", "xx ");
-
 
         /*
         final String str1 = limitSize(normalize(args[0]), 100);

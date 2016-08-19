@@ -33,17 +33,20 @@ public class NGAnalyzer extends Analyzer {
     public static final int DEF_NG_SIZE = 3;
 
     private final int ngramSize;
+    private final boolean search;
 
-    public NGAnalyzer() {
-        this(DEF_NG_SIZE);
+    public NGAnalyzer(final boolean search) {
+        this(DEF_NG_SIZE, search);
     }
 
-    public NGAnalyzer(int ngramSize) {
+    public NGAnalyzer(final int ngramSize,
+                      final boolean search) {
         super();
         if (ngramSize < 1) {
             throw new IllegalArgumentException("ngramSize < 1");
         }
         this.ngramSize = ngramSize;
+        this.search = search;
     }
 
     public int getNgramSize() {
@@ -52,10 +55,12 @@ public class NGAnalyzer extends Analyzer {
 
     @Override
     protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
-        final Tokenizer source = new NGramTokenizer(ngramSize, ngramSize);
+        final Tokenizer source = search
+                        ? new NGTokenizer(ngramSize)
+                        : new NGramTokenizer(ngramSize, ngramSize);
         
         // Não funciona - se duas strings diferem de apenas uma letra,
-        // todos os tokens serão diferentes.
+        // todos os tokens serão diferentes.        
         //final Tokenizer source = new NGTokenizer(ngramSize);
 
         return new Analyzer.TokenStreamComponents(source);

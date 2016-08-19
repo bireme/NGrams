@@ -101,6 +101,7 @@ public class NGrams {
        Maximum ngram text size. If longer then it, it will be truncated.
     */
     public static final int MAX_NG_TEXT_SIZE = 90;
+    //public static final int MAX_NG_TEXT_SIZE = 100;
 
     /*
       Suffix name of the not normalized indexed field associated to the field
@@ -167,7 +168,7 @@ public class NGrams {
             throw new NullPointerException("pipedDoc");
         }
         final Parameters parameters = schema.getParameters();
-        if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos+1) {
+        if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos) {
             throw new IOException("invalid number of fields: " + pipedDoc);
         }
         
@@ -419,21 +420,24 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                if (++cur % 1000 == 0) {
+                //if (++cur % 1000 == 0) {
+                if (++cur % 100 == 0) {
                     System.out.println("<<< " + cur);
                 }
 
                 results.clear();
                 final String tline = line.replace(':', ' ').trim();
-                final String[] split = tline.split(" *\\| *", Integer.MAX_VALUE);
-                if (split.length != parameters.nameFields.size()) {
-                    throw new IOException("invalid number of fields: " + line);
-                }
-                if (checkFieldsPresence(parameters.nameFields,split)) {
-                    searchRaw(parameters, searcher, analyzer, ngDistance, line,
-                                                                id_id, results);
-                    if (!results.isEmpty()) {
-                        writeOutput(parameters, results, writer);
+                if (!tline.isEmpty()) {
+                    final String[] split = tline.split(" *\\| *", Integer.MAX_VALUE);
+                    if (split.length != parameters.nameFields.size()) {
+                        throw new IOException("invalid number of fields: " + line);
+                    }
+                    if (checkFieldsPresence(parameters.nameFields,split)) {
+                        searchRaw(parameters, searcher, analyzer, ngDistance, line,
+                                                                    id_id, results);
+                        if (!results.isEmpty()) {
+                            writeOutput(parameters, results, writer);
+                        }
                     }
                 }
             }
@@ -535,7 +539,7 @@ public class NGrams {
         final int MAX_RESULT = 100;
         if (!ntext.isEmpty()) {
             final Query query = parser.parse(QueryParser.escape(ntext));
-            final TopDocs top = searcher.search(query, 10);
+            final TopDocs top = searcher.search(query, MAX_RESULT);
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
             ScoreDoc after = null;
@@ -545,9 +549,14 @@ public class NGrams {
                     if (++tot > MAX_RESULT) {
                         break outer;
                     }
+                    if (sdoc.score < 0.4) {
+                        System.out.println("Saindo score=" + sdoc.score);
+                        break outer;    // Only for performance
+                    }
                     final Document doc = searcher.doc(sdoc.doc);
                     final float similarity =
                                   ngDistance.getDistance(ntext, doc.get(fname));
+                    //System.out.println("score=" + sdoc.score + " similarity=" + similarity);
                     //if (similarity < lower) {
                         //break outer;
                     //}
@@ -562,7 +571,7 @@ public class NGrams {
                     after = sdoc;
                 }
                 if (after != null) {
-                    scores = searcher.searchAfter(after, query, 10).scoreDocs;
+                    scores = searcher.searchAfter(after, query, MAX_RESULT).scoreDocs;
                 }
             }
         }
@@ -653,7 +662,8 @@ public class NGrams {
         int matchedFields = 0;
 
         for (br.bireme.ngrams.Field fld: fields) {
-            final int val = checkField(ngDistance, fld, param, fields, doc);
+            final int val = checkField(ngDistance, fld, param, 
+                                                    parameters.nameFields, doc);
             if (val == -1) {
                 matchedFields = -1;
                 break; // skip this document because it does not follow requests
@@ -666,11 +676,11 @@ public class NGrams {
         final String id1id2 = (id1.compareTo(id2) < 0) ? (id1 + "_" + id2) :
                               (id1.compareTo(id2) > 0) ? (id2 + "_" + id1) : null;
         
-        if (matchedFields <= 0) {
+        if ((matchedFields <= 0) || (id1id2 == null)) {
             ret = null; // document is reject (one of its fields does not follow schema
         } else {
             if (checkScore(parameters, param, similarity, matchedFields)) {
-                if ((id1id2 == null) || (id_id.contains(id1id2))) {
+                if (id_id.contains(id1id2)) {
                     ret = null;
                 } else {
                     id_id.add(id1id2);
@@ -889,7 +899,7 @@ public class NGrams {
     private static int checkField(final NGramDistance ngDistance,
                                   final br.bireme.ngrams.Field field,
                                   final String[] param,
-                                  final Collection<br.bireme.ngrams.Field> fields,
+                                  final Map<String,br.bireme.ngrams.Field> fields,
                                   final Document doc) {
         assert ngDistance != null;
         assert field != null;
@@ -903,12 +913,10 @@ public class NGrams {
         final String requiredField = field.requiredField;
         int rfldPos = -1;  // required field pos;
         
-        if (requiredField != null) {                    
-            for (br.bireme.ngrams.Field afld : fields) {
-                if (afld.name.equals(requiredField)) {
-                    rfldPos = afld.pos;                
-                    break;
-                }        
+        if (requiredField != null) {
+            final br.bireme.ngrams.Field afld = fields.get(requiredField);
+            if (afld != null) {
+                rfldPos = afld.pos;
             }             
         } 
         if ((rfldPos != -1) && (param[rfldPos].isEmpty())) {
@@ -1118,13 +1126,13 @@ public class NGrams {
             usage();
         }
                                 
-        final NGSchema schema = new NGSchema("dummy", args[2], args[3]);
-        final NGIndex index = new NGIndex("dummy", args[1]);
+        final NGSchema schema = new NGSchema("dummy", args[2], args[3]);        
         
         if (args[0].equals("index")) {
             if (args.length != 4+2) {
                 usage();
             }
+            final NGIndex index = new NGIndex("dummy", args[1], false);
             index(index, schema, args[3+1], args[3+2]);
             System.out.println("Indexing has finished.");
         } else if (args[0].equals("search1")) {
@@ -1132,6 +1140,7 @@ public class NGrams {
                 usage();
             }
             final String encoding = (args.length == 4+4) ? args[4+3] : "UTF-8";
+            final NGIndex index = new NGIndex("dummy", args[1], true);
             search(index, schema, args[3+1], args[3+2], args[3+3], encoding);
             System.out.println("Searching has finished.");
         } else if (args[0].equals("search2")) {
@@ -1140,6 +1149,7 @@ public class NGrams {
             }
             final boolean original = 
                           (args.length > 4+1) && args[4+1].equals("--original");
+            final NGIndex index = new NGIndex("dummy", args[1], true);
             final Set<String> set = search(index, schema, args[4], original);
             if (set.isEmpty()) {
                 System.out.println("No result was found.");
