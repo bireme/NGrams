@@ -44,17 +44,12 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.NGramPhraseQuery;
-import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.spell.NGramDistance;
 import org.xml.sax.SAXException;
@@ -297,7 +292,7 @@ public class NGrams {
                 } else {
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StoredField(fname, ncontent));
+                    doc.add(new StringField(fname, ncontent, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
                 }
@@ -577,6 +572,7 @@ public class NGrams {
         }
     }
 
+    /*
     private static void searchRaw2(final Parameters parameters,
                                    final IndexSearcher searcher,
                                    final NGAnalyzer analyzer,
@@ -639,6 +635,7 @@ public class NGrams {
             }
         }
     }
+    */
 
     // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
     private static Result createResult(final Set<String> id_id,
