@@ -42,7 +42,7 @@ class Field {
     final String name;         // field's name
     final Status presence;     // tells if the field presence is 'required', 'optional' or 'optional requiring max score'
     final Set<String> content; // contents that require max score if this field is/is_not equals to
-    final Status contentMatch; // this field has to be equal to the indexed one
+    final Status contentMatch; // this field has to be equal to the indexed one if 'required', 'optional' if not and 'optional requiring max score' if not.
     final String requiredField;// name of another field which is required by this field or null if not
     final int pos;            // position inside line A|B|C|D|...|H (piped expression/file)
 
@@ -170,7 +170,7 @@ class IndexedNGramField extends Field {
     IndexedNGramField(final String name,
                       final int pos,
                       final float minScore) {
-        super(name, pos, Status.REQUIRED, null, Status.OPTIONAL, null);
+        super(name, pos, Status.REQUIRED, null, Status.REQUIRED, null);
         if ((minScore < 0) || (minScore > 1)) {
             throw new IllegalArgumentException("minScore: " + minScore
                                                                     + " [0,1]");

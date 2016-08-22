@@ -47,12 +47,12 @@ import org.xml.sax.SAXException;
  *      <databaseField pos="0"/>
  *      <idField pos="2"/>
  *      <idxNGramField pos="4" name="titulo" minScore="0.6"/>
- *      <nGramField pos="5" name="autores" minScore="0.7" status="OPTIONAL" match="REQUIRED" requiredField="titulo"/>
- *      <exactField pos="6" name="volume" status="MAX_SCORE"/>
- *      <exactField pos="8" name="numero" status="OPTIONAL" match="REQUIRED"/>
- *      <exactField pos="12" name="ano" status="REQUIRED" match="OPTIONAL" />
- *      <exactField pos="13" name="pais" status="OPTIONAL" requiredField="numero" match="MAX_SCORE" values="BR,US"/>
- *      <regExpField pos="15" name="paginas" status="OPTIONAL" requiredField="numero" pattern="(\d+)" groupNum="1"/>
+ *      <nGramField pos="5" name="autores" minScore="0.7" presence="OPTIONAL" match="REQUIRED" requiredField="titulo"/>
+ *      <exactField pos="6" name="volume" presence="MAX_SCORE"/>
+ *      <exactField pos="8" name="numero" presence="OPTIONAL" match="REQUIRED"/>
+ *      <exactField pos="12" name="ano" presence="REQUIRED" match="OPTIONAL" />
+ *      <exactField pos="13" name="pais" presence="OPTIONAL" requiredField="numero" match="MAX_SCORE" values="BR,US"/>
+ *      <regExpField pos="15" name="paginas" presence="OPTIONAL" requiredField="numero" pattern="(\d+)" groupNum="1"/>
  *      <noCompField pos="20" name="base de dados"/>
  *  </config>
 
@@ -196,7 +196,7 @@ class ParameterParser {
                 throw new IOException("missing 'pos' attribute");
             }
             final Status status;
-            final String statusStr = eElement.getAttribute("status").trim();
+            final String statusStr = eElement.getAttribute("presence").trim();
             if (statusStr.isEmpty()) {
                 status = Status.OPTIONAL;
             } else {
@@ -275,7 +275,7 @@ class ParameterParser {
                 throw new IOException("missing 'pos' attribute");
             }
             final Status status;
-            final String statusStr = eElement.getAttribute("status").trim();
+            final String statusStr = eElement.getAttribute("presence").trim();
             if (statusStr.isEmpty()) {
                 status = Status.OPTIONAL;
             } else {
@@ -358,7 +358,7 @@ class ParameterParser {
                 throw new IOException("missing 'pos' attribute");
             }
             final Status status;
-            final String statusStr = eElement.getAttribute("status").trim();
+            final String statusStr = eElement.getAttribute("presence").trim();
             if (statusStr.isEmpty()) {
                 status = Status.OPTIONAL;
             } else {

@@ -660,6 +660,7 @@ public class NGrams {
         final Collection<br.bireme.ngrams.Field> fields = 
                                                  parameters.nameFields.values();
         int matchedFields = 0;
+        boolean maxScore = false;
 
         for (br.bireme.ngrams.Field fld: fields) {
             final int val = checkField(ngDistance, fld, param, 
@@ -667,8 +668,11 @@ public class NGrams {
             if (val == -1) {
                 matchedFields = -1;
                 break; // skip this document because it does not follow requests
+            } else if (val == -2) {
+                maxScore = true;
+            } else {
+                matchedFields += val;
             }
-            matchedFields += val;
         }
         
         final String id1 = param[parameters.id.pos];
@@ -679,7 +683,8 @@ public class NGrams {
         if ((matchedFields <= 0) || (id1id2 == null)) {
             ret = null; // document is reject (one of its fields does not follow schema
         } else {
-            if (checkScore(parameters, param, similarity, matchedFields)) {
+            if (checkScore(parameters, param, similarity, matchedFields, 
+                                                                    maxScore)) {
                 if (id_id.contains(id1id2)) {
                     ret = null;
                 } else {
@@ -693,6 +698,29 @@ public class NGrams {
         return ret;
     }
 
+    private static boolean checkScore(final Parameters parameters,
+                                      final String[] param,
+                                      final float similarity,
+                                      final int matchedFields,
+                                      final boolean maxScore) {
+        assert parameters != null;
+        assert param != null;
+        assert similarity >= 0;
+        assert matchedFields > 0;
+
+        Score score = null;
+        for (Score score1 : parameters.scores) {
+            final float minValue = maxScore ? 1 : score1.minValue;
+            if (similarity >= minValue) {
+                score = score1;
+            } else {
+                break;
+            }
+        }
+
+        return (score != null) && (matchedFields >= score.minFields);
+    }
+    
     private static Set<String> results2pipe(final Parameters parameters,
                                             final Set<Result> results) {
         assert parameters != null;
@@ -820,70 +848,6 @@ public class NGrams {
         return ret.descendingSet();
     }
     
-    private static boolean checkScore(final Parameters parameters,
-                                      final String[] param,
-                                      final float similarity,
-                                      final int matchedFields) {
-        assert parameters != null;
-        assert param != null;
-        assert similarity >= 0;
-        assert matchedFields > 0;
-
-        boolean maxScore = isMaxScore(parameters.exacts, param) ||
-                           isMaxScore(parameters.ngrams, param) ||
-                           isMaxScore(parameters.regexps, param);
-
-        Score score = null;
-        for (Score score1 : parameters.scores) {
-            final float minValue = maxScore ? 1 : score1.minValue;
-            if (similarity >= minValue) {
-                score = score1;
-            } else {
-                break;
-            }
-        }
-
-        return (score != null) && (matchedFields >= score.minFields);
-    }
-
-    /**
-     * Checks the fields/definititons to tell if the score should be MAX_SCORE 
-     * or not.
-     * @param fields field's definitions
-     * @param param field's content
-     * @return true if MAX_SCORE should be used or false if not.
-     */
-    private static boolean isMaxScore(
-                             final Set<? extends br.bireme.ngrams.Field> fields,
-                             final String[] param) {
-        assert fields != null;
-        assert param != null;
-
-        boolean maxScore = false;
-
-        for (br.bireme.ngrams.Field field : fields) {
-            if ((field.presence == Status.MAX_SCORE) &&
-                (param[field.pos].isEmpty())) {
-                maxScore = true;
-                break;
-            }
-            if (field.content != null) {
-                boolean found = false;
-                for (String str: field.content) {
-                    if (str.equals(param[field.pos])) {
-                        found = true;
-                        break;
-                    }
-                }
-                maxScore = !found;
-                if (maxScore) {
-                    break;
-                }
-            }
-        }
-        return maxScore;
-    }
-
     /**
      *
      * @param ngDistance
@@ -892,9 +856,10 @@ public class NGrams {
      * @param pos
      * @param fields
      * @param doc
-     * @return -1 fields dont match - match is required
-     *          0 fields dont match - empty field or match is optional
-     *          1 fields match
+     * @return -2 : fields dont match and contentMatch is MAX_SCORE
+     *         -1 : fields dont match and contentMatch is required
+     *          0 : fields dont match and contentMatch is optional
+     *          1 : fields match
      */
     private static int checkField(final NGramDistance ngDistance,
                                   final br.bireme.ngrams.Field field,
@@ -963,18 +928,12 @@ public class NGrams {
         final String text = (String)doc.get(field.name);
 
         if (fld.isEmpty()) {
-            if (field.presence == Status.REQUIRED) {
-                ret = -1;
-            } else {
-                ret = text.isEmpty() ? 0 
-                               : field.contentMatch == Status.OPTIONAL ? 0 : -1;
-            }
+            ret = -1;
         } else if (fld.equals(text)) {
             ret = 1;
         } else {
             final float similarity = ngDistance.getDistance(fld, text);
-            ret = (similarity >= ((IndexedNGramField)field).minScore) ? 1
-                               : field.contentMatch == Status.OPTIONAL ? 0 : -1;
+            ret = (similarity >= ((IndexedNGramField)field).minScore) ? 1 : -1;
         }
         return ret;
     }
@@ -989,17 +948,37 @@ public class NGrams {
         assert doc != null;
 
         final int ret;
-        final String text = (String)doc.get(field.name);
+        final String idxText = (String)doc.get(field.name);
 
         if (fld.isEmpty()) {
-            ret = (field.presence == Status.REQUIRED) ? -1: 0;
-        } else if (fld.equals(text)) {
+            if (field.presence == Status.REQUIRED) {
+                ret = -1;
+            } else if (field.presence == Status.MAX_SCORE) {
+                ret = -2;
+            } else if (fld.equals(idxText)) {
+                ret = 1;
+            } else if (field.contentMatch == Status.REQUIRED) {
+                ret = -1;
+            } else if (field.contentMatch == Status.MAX_SCORE) {
+                ret = -2;
+            } else {   // Status.OPTIONAL
+                ret = 0;
+            }
+         } else if (fld.equals(idxText)) {
             ret = 1;
-        } else {
-            final float similarity = ngDistance.getDistance(fld, text);
-            ret = (similarity >= ((NGramField)field).minScore) ? 1
-                               : field.contentMatch == Status.OPTIONAL ? 0 : -1;
-        }
+         } else {
+             final float similarity = ngDistance.getDistance(fld, idxText);
+             if (similarity >= ((NGramField)field).minScore) {
+                 ret = 1;
+             } else if (field.contentMatch == Status.REQUIRED) {
+                ret = -1;
+            } else if (field.contentMatch == Status.MAX_SCORE) {
+                ret = -2;
+            } else {   // Status.OPTIONAL
+                ret = 0;
+            }
+         }
+        
         return ret;
     }
 
@@ -1044,8 +1023,9 @@ public class NGrams {
      * @param field - configuration of the document
      * @param fld - text used to search
      * @param idxText - txt from index
-     * @return -1 : fields dont match and match is required or field is empty and it is required
-     *          0 : fields dont match and match is optional or field is empty but it is optional
+     * @return -2 : fields dont match and contentMatch is MAX_SCORE
+     *         -1 : fields dont match and contentMatch is required
+     *          0 : fields dont match and contentMatch is optional
      *          1 : fields match
      */
     private static int compareFields(final br.bireme.ngrams.Field field,
@@ -1055,11 +1035,32 @@ public class NGrams {
         assert fld != null;
         assert idxText != null;
 
-        return fld.isEmpty() ? ((field.presence == Status.REQUIRED) ? -1 : 0)
-                             : (fld.equals(idxText) ? 1
-                                : idxText.isEmpty() ? 0
-                                   : (field.contentMatch == Status.REQUIRED ? -1
-                                                                          : 0));
+        final int ret;
+        
+        if (fld.isEmpty()) {
+            if (field.presence == Status.REQUIRED) {
+                ret = -1;
+            } else if (field.presence == Status.MAX_SCORE) {
+                ret = -2;
+            } else if (fld.equals(idxText)) {
+                ret = 1;
+            } else if (field.contentMatch == Status.REQUIRED) {
+                ret = -1;
+            } else if (field.contentMatch == Status.MAX_SCORE) {
+                ret = -2;
+            } else {   // Status.OPTIONAL
+                ret = 0;
+            }
+         } else if (fld.equals(idxText)) {
+            ret = 1;
+         } else if (field.contentMatch == Status.REQUIRED) {
+            ret = -1;
+         } else if (field.contentMatch == Status.MAX_SCORE) {
+            ret = -2;
+         } else {   // Status.OPTIONAL
+            ret = 0;
+         }
+        return ret;
     }
 
     private static void writeOutput(final Parameters parameters,
@@ -1106,7 +1107,8 @@ public class NGrams {
           "\n       <text> - text used to find documents" +
           "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
           "\n\nFormat of input file <inFile> line:  <id>|<ngram index/search text>|<content>|...|<content>" +
-          "\nFormat of output file line: <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>\n");
+          "\nFormat of output file line: <rank>|<similarity>|<search doc id>|<index doc id>|<ngram search text>|" + 
+                     " <ngram index text>|<search_source>|<index_source>\n");
 
         System.exit(1);
     }
