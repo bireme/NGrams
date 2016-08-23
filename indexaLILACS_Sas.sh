@@ -1,4 +1,5 @@
-HOME=/home/javaapps/NGrams
+#HOME=/home/javaapps/NGrams
+HOME=/home/heitor/Projetos/NGrams
 
 cd $HOME
 

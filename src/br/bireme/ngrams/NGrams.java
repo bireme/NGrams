@@ -287,12 +287,12 @@ public class NGrams {
                         break;
                     }
                     id = content.trim();
-                    doc.add(new StoredField(fname, id));
+                    doc.add(new StringField(fname, id, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, id));
                 } else {
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StringField(fname, ncontent, Field.Store.YES));
+                    doc.add(new StoredField(fname, ncontent));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
                 }
