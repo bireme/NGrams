@@ -90,7 +90,8 @@ public class CompareResults {
                         final String line2 = line.trim();
                         if (!line2.isEmpty()) {
                             final String[] split = line2.split("\\|");
-                            checkDocs(split[2], split[3], isearcher, bwriter);
+                            checkDocs(split[1], split[2], split[3], isearcher, 
+                                                                       bwriter);
                         }
                     }
                 }
@@ -98,11 +99,13 @@ public class CompareResults {
         }
     }
     
-    private static void checkDocs(final String docId1,
+    private static void checkDocs(final String similarity,
+                                  final String docId1,
                                   final String docId2,
                                   final IndexSearcher isearcher,
                                   final BufferedWriter bwriter) 
                                                             throws IOException {
+        assert similarity != null;
         assert docId1 != null;
         assert docId2 != null;
         assert isearcher != null;
@@ -119,14 +122,16 @@ public class CompareResults {
             final Document doc1 = isearcher.doc(scores1[0].doc);
             final Document doc2 = isearcher.doc(scores2[0].doc);
             
-            writeDocDifferences(doc1, doc2, bwriter);
+            writeDocDifferences(similarity, doc1, doc2, bwriter);
         }
     }
     
-    private static void writeDocDifferences(final Document doc1,
+    private static void writeDocDifferences(final String similarity,
+                                            final Document doc1,
                                             final Document doc2,
                                             final BufferedWriter bwriter) 
                                                             throws IOException {
+        assert similarity != null;
         assert doc1 != null;
         assert doc2 != null;
         assert bwriter != null;
@@ -151,12 +156,17 @@ public class CompareResults {
                     }
                 }
             }
-        }
-        builder.append(id1 + "|" + id2 + "|");
-        if (diff.isEmpty()) {
-            builder.append("<equals>\n");
+        }       
+        if (diff.isEmpty()) {            
+            builder.append("<identical>|");
+            builder.append(id1 + "|" + id2 + "\n");
         } else {
-            builder.append("<not equals>\n");
+            if (similarity.equals("1.0")) {
+                builder.append("<very similar>|");
+            } else {
+                builder.append("<similar>|");
+            }
+            builder.append(id1 + "|" + id2 + "\n");
             for (String di: diff) {
                 builder.append(di);
                 builder.append("\n");
