@@ -1,5 +1,5 @@
-#HOME=/home/javaapps/NGrams
-HOME=/home/heitor/Projetos/NGrams
+HOME=/home/javaapps/NGrams
+#HOME=/home/heitor/Projetos/NGrams
 
 echo "Copia LILACS atualizada do serverabd2"
 scp -p transfer@serverabd2.bireme.br:/home/lilacs/www/bases/lildbi/dbcertif/lilacs/LILACS.{mst,xrf} $HOME/work/

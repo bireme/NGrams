@@ -1,7 +1,7 @@
 LUCENE_VERSION=6.2.0
 
-#HOME=/home/javaapps/NGrams
-HOME=/home/heitor/Projetos/NGrams
+HOME=/home/javaapps/NGrams
+#HOME=/home/heitor/Projetos/NGrams
 
 cd $HOME
 
