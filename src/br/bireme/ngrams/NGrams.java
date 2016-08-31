@@ -428,8 +428,8 @@ public class NGrams {
                         throw new IOException("invalid number of fields: " + line);
                     }
                     if (checkFieldsPresence(parameters.nameFields,split)) {
-                        searchRaw(parameters, searcher, analyzer, ngDistance, line,
-                                                                    id_id, results);
+                        searchRaw(parameters, searcher, analyzer, ngDistance, 
+                                                    line, true, id_id, results);
                         if (!results.isEmpty()) {
                             writeOutput(parameters, results, writer);
                         }
@@ -469,8 +469,47 @@ public class NGrams {
         }
 
         if (checkFieldsPresence(parameters.nameFields,split)) {
-            searchRaw(parameters, searcher, analyzer, ngDistance, ttext, id_id,
-                                                                       results);
+            searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
+                                                                id_id, results);
+        }
+        searcher.getIndexReader().close();
+        
+        return original ? results2pipeFull(parameters, results)
+                        : results2pipe(parameters, results);
+    }
+    
+    public static Set<String> srcWithoutSimil(final NGIndex index,
+                                              final NGSchema schema,
+                                              final String text,
+                                              final boolean original) 
+                                                         throws IOException,
+                                                                ParseException {
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }
+        if (text == null) {
+            throw new NullPointerException("text");
+        }
+        final IndexSearcher searcher = index.getIndexSearcher();
+        final NGAnalyzer analyzer = (NGAnalyzer)index.getAnalyzer();
+        final Parameters parameters = schema.getParameters();
+        final NGramDistance ngDistance = new NGramDistance(
+                                                       analyzer.getNgramSize());
+        final Set<String> id_id = new HashSet<>();
+        final Set<Result> results = new HashSet<>();
+
+        final String ttext = text.replace(':', ' ').trim();
+        final String[] split = ttext.split(" *\\| *", Integer.MAX_VALUE);
+        if (split.length != parameters.nameFields.size()) {
+            throw new IOException("invalid number of fields: " + text);
+        }
+
+        if (checkFieldsPresence(parameters.nameFields,split)) {
+            searchRaw(parameters, searcher, analyzer, ngDistance, ttext, false,
+                                                                id_id, results);
         }
         searcher.getIndexReader().close();
         
@@ -499,7 +538,7 @@ public class NGrams {
         final Set<String> id_id = new HashSet<>();
         final TreeSet<Result> results = new TreeSet<>();
 
-        searchRaw(parameters, searcher, analyzer, ngDistance, text, id_id,
+        searchRaw(parameters, searcher, analyzer, ngDistance, text, true, id_id,
                                                                        results);
         searcher.getIndexReader().close();
 
@@ -512,6 +551,7 @@ public class NGrams {
                                   final NGAnalyzer analyzer,
                                   final NGramDistance ngDistance,
                                   final String text,
+                                  final boolean useSimilarity,
                                   final Set<String> id_id,
                                   final Set<Result> results)
                                             throws IOException, ParseException {
@@ -549,8 +589,8 @@ public class NGrams {
                         break outer;    // Only for performance
                     }
                     final Document doc = searcher.doc(sdoc.doc);
-                    final float similarity =
-                                  ngDistance.getDistance(ntext, doc.get(fname));
+                    final float similarity = useSimilarity ? 
+                              ngDistance.getDistance(ntext, doc.get(fname)) : 1;
                     //System.out.println("score=" + sdoc.score + " similarity=" + similarity);
                     //if (similarity < lower) {
                         //break outer;
@@ -1103,6 +1143,12 @@ public class NGrams {
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <text> - text used to find documents" +
           "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
+          "\n\n   search3 <indexPath> <confFile> <confFileEncoding> <text> [--original]- find similar documents - IT DOES NOT USE SIMILARITY FUNCTION." +
+          "\n       <indexPath> - Lucene index name/path" +
+          "\n       <confFile> - xml configuration file. See documentation for format." +
+          "\n       <confFileEncoding> - configuration file character encoding." +
+          "\n       <text> - text used to find documents" +
+          "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
           "\n\nFormat of input file <inFile> line:  <id>|<ngram index/search text>|<content>|...|<content>" +
           "\nFormat of output file line: <rank>|<similarity>|<search doc id>|<index doc id>|<ngram search text>|" + 
                      " <ngram index text>|<search_source>|<index_source>\n");
@@ -1158,6 +1204,23 @@ public class NGrams {
                     System.out.println((++pos) + ") " + res);
                 }
             }
+        } else if (args[0].equals("search3")) {
+            if (args.length < 4+1) {
+                usage();
+            }
+            final boolean original = 
+                          (args.length > 4+1) && args[4+1].equals("--original");
+            final NGIndex index = new NGIndex("dummy", args[1], true);
+            final Set<String> set = srcWithoutSimil(index, schema, args[4], 
+                                                                      original);
+            if (set.isEmpty()) {
+                System.out.println("No result was found.");
+            } else {
+                int pos = 0;
+                for(String res : set) {
+                    System.out.println((++pos) + ") " + res);
+                }
+            }    
         } else {
             usage();
         }
