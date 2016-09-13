@@ -35,6 +35,10 @@ public class NGAnalyzer extends Analyzer {
     private final int ngramSize;
     private final boolean search;
 
+    public NGAnalyzer() {
+        this(DEF_NG_SIZE, false);
+    }
+    
     public NGAnalyzer(final boolean search) {
         this(DEF_NG_SIZE, search);
     }

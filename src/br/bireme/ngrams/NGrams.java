@@ -590,14 +590,15 @@ public class NGrams {
                     }
                     final Document doc = searcher.doc(sdoc.doc);
                     final float similarity = useSimilarity ? 
-                              ngDistance.getDistance(ntext, doc.get(fname)) : 1;
+                              ngDistance.getDistance(ntext, doc.get(fname)) : 0;
                     //System.out.println("score=" + sdoc.score + " similarity=" + similarity);
                     //if (similarity < lower) {
                         //break outer;
                     //}
-                    if (similarity >= lower) {
+                    if ((!useSimilarity) || (similarity >= lower)) {
                         final Result out = createResult(id_id, parameters,
-                                 param, doc, ngDistance, similarity,sdoc.score);
+                                 param, doc, ngDistance, useSimilarity, 
+                                 similarity, sdoc.score);
                         if (out != null) {
                             //System.out.println("##### " + out.compare);
                             results.add(out);
@@ -683,6 +684,7 @@ public class NGrams {
                                        final String[] param,
                                        final Document doc,
                                        final NGramDistance ngDistance,
+                                       final boolean useSimilarity,
                                        final float similarity,
                                        final float score) {
         assert id_id != null;
@@ -730,6 +732,39 @@ public class NGrams {
                 }
             } else {
                 ret = null;
+            }
+        }
+        return ret;
+    }
+    
+    // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
+    private static Result createResult2(final Set<String> id_id,
+                                       final Parameters parameters,
+                                       final String[] param,
+                                       final Document doc,
+                                       final NGramDistance ngDistance,
+                                       final float similarity,
+                                       final float score) {
+        assert id_id != null;
+        assert parameters != null;
+        assert param != null;
+        assert doc != null;
+        assert score >= 0;
+
+        final Result ret;
+        final String id1 = param[parameters.id.pos];
+        final String id2 = (String)doc.get("id");
+        final String id1id2 = (id1.compareTo(id2) < 0) ? (id1 + "_" + id2) :
+                              (id1.compareTo(id2) > 0) ? (id2 + "_" + id1) : null;
+        
+        if (id1id2 == null) {
+            ret = null; // document is reject (one of its fields does not follow schema
+        } else {           
+            if (id_id.contains(id1id2)) {
+                ret = null;
+            } else {
+                id_id.add(id1id2);
+                ret = new NGrams.Result(param, doc, similarity, score);
             }
         }
         return ret;
