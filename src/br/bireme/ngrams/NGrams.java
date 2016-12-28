@@ -123,7 +123,7 @@ public class NGrams {
         }
 
         final Charset charset = Charset.forName(inFileEncoding);
-        final IndexWriter writer = index.getIndexWriter();
+        final IndexWriter writer = index.getIndexWriter(false);
         int cur = 0;
 
         try (BufferedReader reader = Files.newBufferedReader(

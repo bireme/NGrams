@@ -192,4 +192,3 @@ public class NGSchema {
         return Objects.equals(this.name, other.name);
     }
 }
-

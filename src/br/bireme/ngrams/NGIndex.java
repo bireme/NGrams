@@ -69,8 +69,8 @@ public class NGIndex {
         return name;
     }
 
-    public IndexWriter getIndexWriter() throws IOException {
-        return getIndexWriter(indexPath, analyzer);
+    public IndexWriter getIndexWriter(final boolean append) throws IOException {
+        return getIndexWriter(indexPath, analyzer, append);
     }
 
     public IndexSearcher getIndexSearcher() throws IOException {
@@ -82,7 +82,8 @@ public class NGIndex {
     }
 
     private IndexWriter getIndexWriter(final String indexPath,
-                                       final Analyzer analyzer)
+                                       final Analyzer analyzer,
+                                       final boolean append)
                                                             throws IOException {
         assert indexPath != null;
         assert analyzer != null;
@@ -90,6 +91,12 @@ public class NGIndex {
         final Directory directory = FSDirectory.open(
                                                   new File(indexPath).toPath());
         final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);
+        
+        if (append) {
+            cfg.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+        } else {
+            cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+        }
 
         return new IndexWriter(directory, cfg);
     }
