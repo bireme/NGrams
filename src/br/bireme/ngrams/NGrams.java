@@ -135,7 +135,10 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                indexDocument(index, writer, schema, line);
+                final String lineT = line.trim();
+                if (! lineT.isEmpty()) {
+                    indexDocument(index, writer, schema, line);
+                }
                 if (++cur % 10000 == 0) {
                     System.out.println(">>> " + cur);
                 }
@@ -164,7 +167,7 @@ public class NGrams {
         }
         final Parameters parameters = schema.getParameters();
         if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos) {
-            throw new IOException("invalid number of fields: " + pipedDoc);
+            throw new IOException("invalid number of fields: [" + pipedDoc + "]");
         }
         
         final String[] split = pipedDoc.replace(':', ' ').trim()
@@ -584,17 +587,17 @@ public class NGrams {
                     if (++tot > MAX_RESULT) {
                         break outer;
                     }
-                    if (sdoc.score < 0.4) {
-                        System.out.println("Saindo score=" + sdoc.score);
-                        break outer;    // Only for performance
-                    }
+                    //if (sdoc.score < 0.4) {
+                    //    System.out.println("Saindo score=" + sdoc.score);
+                    //    break outer;    // Only for performance
+                    //}
                     final Document doc = searcher.doc(sdoc.doc);
                     final float similarity = useSimilarity ? 
-                              ngDistance.getDistance(ntext, doc.get(fname)) : 0;
-                    //System.out.println("score=" + sdoc.score + " similarity=" + similarity);
-                    //if (similarity < lower) {
-                        //break outer;
-                    //}
+                              ngDistance.getDistance(ntext, doc.get(fname)) : 0;                    
+                    if (similarity < lower) {
+                        System.out.println("score=" + sdoc.score + " similarity=" + similarity);
+                        break outer;  // Only for performance
+                    }
                     if ((!useSimilarity) || (similarity >= lower)) {
                         final Result out = createResult(id_id, parameters,
                                  param, doc, ngDistance, useSimilarity, 
