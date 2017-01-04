@@ -136,7 +136,7 @@ public class NGSchema {
         return parameters.indexed.name;
     }
 
-    Parameters getParameters() {
+    public Parameters getParameters() {
         return parameters;
     }
 

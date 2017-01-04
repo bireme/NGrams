@@ -31,6 +31,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Collection;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -188,6 +189,55 @@ public class NGrams {
         }
                 
         return (doc != null);
+    }
+    
+    public static void indexDocuments(final NGSchema schema,
+                                      final NGIndex index,
+                                      final String multiLinePipedDoc) 
+                                                            throws IOException {
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }        
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (multiLinePipedDoc == null) {
+            throw new NullPointerException("multiLinePipedDoc");
+        }
+        final Parameters parameters = schema.getParameters();
+        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
+        
+        try (IndexWriter writer = index.getIndexWriter(true)) {
+            final String[] mlPipedDoc = multiLinePipedDoc.trim().split(" *\n *");
+            
+            for (String line: mlPipedDoc) {
+                if (!line.isEmpty()) {
+                    final String[] split = line.replace(':', ' ').trim()
+                            .split(" *\\| *", Integer.MAX_VALUE);
+                    if (split.length < parameters.maxIdxFieldPos) {
+                        throw new IOException("invalid number of fields: [" + 
+                                                                    line + "]");
+                    }
+                    final String id = split[parameters.id.pos];
+                    if (id.isEmpty()) {
+                        throw new IllegalArgumentException("id in:" + line);
+                    }
+                    final String dbName = split[parameters.db.pos];
+                    if (dbName.isEmpty()) {
+                        throw new IllegalArgumentException("dbName in:" + line);
+                    }
+                    final Document doc = createDocument(flds, split);
+                    if (doc != null) {
+                        final String indexName = doc.get(dbName);
+                        if (indexName == null) {
+                            throw new IllegalArgumentException("indexName in:" +
+                                                                          line);
+                        }
+                        writer.addDocument(doc);
+                    }
+                }
+            }
+        }
     }
     
     public static String json2pipe(final NGSchema schema,
