@@ -622,19 +622,19 @@ public class NGrams {
             outer: while (scores.length > 0) {
                 for (ScoreDoc sdoc : scores) {
                     if (++tot > MAX_RESULT) {
-                        break outer;
+                        break outer;  // Only for performance
                     }
-                    //if (sdoc.score < 0.4) {
-                    //    System.out.println("Saindo score=" + sdoc.score);
-                    //    break outer;    // Only for performance
-                    //}
+                    if (sdoc.score < 1.0) {
+                        //System.out.println("Saindo score=" + sdoc.score);
+                        break outer;    // Only for performance
+                    }
                     final Document doc = searcher.doc(sdoc.doc);
                     final float similarity = useSimilarity ? 
                               ngDistance.getDistance(ntext, doc.get(fname)) : 0;                    
-                    if (similarity < lower) {
-                        System.out.println("score=" + sdoc.score + " similarity=" + similarity);
-                        break outer;  // Only for performance
-                    }
+                    /*if (similarity < lower) {
+                        System.out.println("score=" + sdoc.score + " similarity=" + similarity + " text=" + doc.get(fname));
+                        //break outer;  // Only for performance
+                    }*/
                     if ((!useSimilarity) || (similarity >= lower)) {
                         final Result out = createResult(id_id, parameters,
                                  param, doc, ngDistance, useSimilarity, 
