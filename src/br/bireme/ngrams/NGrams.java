@@ -218,21 +218,8 @@ public class NGrams {
                         throw new IOException("invalid number of fields: [" + 
                                                                     line + "]");
                     }
-                    final String id = split[parameters.id.pos];
-                    if (id.isEmpty()) {
-                        throw new IllegalArgumentException("id in:" + line);
-                    }
-                    final String dbName = split[parameters.db.pos];
-                    if (dbName.isEmpty()) {
-                        throw new IllegalArgumentException("dbName in:" + line);
-                    }
                     final Document doc = createDocument(flds, split);
                     if (doc != null) {
-                        final String indexName = doc.get(dbName);
-                        if (indexName == null) {
-                            throw new IllegalArgumentException("indexName in:" +
-                                                                          line);
-                        }
                         writer.addDocument(doc);
                     }
                 }
