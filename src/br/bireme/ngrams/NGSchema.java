@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import javax.xml.parsers.ParserConfigurationException;
 import org.xml.sax.SAXException;
 
@@ -61,6 +62,28 @@ public class NGSchema {
         }
         this.name = name;
         this.config = readFile(confFile, confFileEncoding);
+        this.parameters = ParameterParser.parseParameters(this.config);
+        this.posNames = new TreeMap<>();
+        this.namesPos = new TreeMap<>();
+
+        for (Field field : parameters.sfields.values()) {
+            posNames.put(field.pos, field.name);
+            namesPos.put(field.name, field.pos);
+        }
+    }
+    
+    public NGSchema(final String name,
+                    final String content) throws IOException,
+                                                 ParserConfigurationException,
+                                                 SAXException {
+        if (name == null) {
+            throw new NullPointerException("name");
+        }
+        if (content == null) {
+            throw new NullPointerException("content");
+        }
+        this.name = name;
+        this.config = content;
         this.parameters = ParameterParser.parseParameters(this.config);
         this.posNames = new TreeMap<>();
         this.namesPos = new TreeMap<>();
@@ -131,8 +154,50 @@ public class NGSchema {
 
         return builder.toString();
     }
+    
+    public String getSchemaXml() {
+        String ret = "<config>";
+
+        for (Score score: parameters.scores) {
+            ret += "\n\t<score minValue=\"" + score.minValue + "\" minFields=\"" +
+            score.minFields + "\"/>";
+        }
+        ret += "\n\t<databaseField pos=\"" + parameters.db.pos + "\"/>";
+        ret += "\n\t<idField pos=\"" + parameters.id.pos + "\"/>";
+        ret += "\n\t<idxNGramField pos=\"" + parameters.indexed.pos + "\" name=\"" +
+                parameters.indexed.name + "\" minScore=\"" +  
+                parameters.indexed.minScore + "\"/>";
+        
+        for (ExactField field: parameters.exacts) {
+            ret += "\n\t<exactField pos=\"" + field.pos + "\" name=\"" +
+                   field.name + "\" requiredField=\"" + field.requiredField +
+                   "\" presence=\"" + field.presence + "\" match=\"" + 
+                   field.contentMatch.name() + "\"/>";
+        }
+        for (NGramField field: parameters.ngrams) {
+            ret += "\n\t<nGramField pos=\"" + field.pos + "\" name=\"" +
+                   field.name + "\" minScore=\"" + field.minScore + 
+                   "\" presence=\"" + field.presence + "\" match=\"" + 
+                   field.contentMatch.name() + "\"/>";
+        }
+        for (RegExpField field: parameters.regexps) {
+            ret += "\n\t<regExpField pos=\"" + field.pos + "\" name=\"" +
+                   field.name + "\" requiredField=\"" + field.requiredField +
+                   "\" presence=\"" + field.presence + "\" match=\"" + 
+                   field.contentMatch.name() + "\" pattern=\"" + field.matcher.
+                   pattern().pattern() + "\" groupNum=\"" + field.groupNum + "\"/>";
+        }
+        for (NoCompareField field: parameters.nocompare) {
+            ret += "\n\t<noCompField pos=\"" + field.pos + "\" name=\"" +
+                   field.name + "\"/>";
+        }
+        ret += "\n</config>";
+        
+        return ret;
+    }
 
     public String getIndexedFldName() {
+        
         return parameters.indexed.name;
     }
 
