@@ -612,55 +612,61 @@ public class NGrams {
         final String ntext = Tools.limitSize(Tools.normalize(
                        param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
         final int MAX_RESULT = 100;
+        
         if (!ntext.isEmpty()) {
             final Query query = parser.parse(QueryParser.escape(ntext));
             final TopDocs top = searcher.search(query, MAX_RESULT);
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
-            ScoreDoc after = null;
-            int tot = 0;
-            outer: while (scores.length > 0) {
-                for (ScoreDoc sdoc : scores) {
-                    if (++tot > MAX_RESULT) {
-                        break outer;  // Only for performance
-                    }
-                    if (sdoc.score < 1.0) {
-                        //System.out.println("Saindo score=" + sdoc.score);
-                        break outer;    // Only for performance
-                    }
-                    final Document doc = searcher.doc(sdoc.doc);
-                    final float similarity = useSimilarity ? 
-                              ngDistance.getDistance(ntext, doc.get(fname)) : 0;                    
-                    /*if (similarity < lower) {
-                        System.out.println("score=" + sdoc.score + " similarity=" + similarity + " text=" + doc.get(fname));
-                        //break outer;  // Only for performance
-                    }*/
-                    if ((!useSimilarity) || (similarity >= lower)) {
+            int remaining = MAX_RESULT;
+            
+            for (ScoreDoc sdoc : scores) {  
+                if (remaining-- <= 0) {
+                    break;  // Only for performance
+                }                
+                final Document doc = searcher.doc(sdoc.doc);                
+                if (useSimilarity) {
+                    final float similarity = ngDistance.getDistance(ntext, 
+                                                                doc.get(fname));
+                    if (similarity < lower) {
+                        if (remaining > 3) {
+                            remaining = 3;
+                            //System.out.println("Atualizando tot=" + tot + " score=" + sdoc.score + " similarity=" + similarity+ " text=" + doc.get(fname));
+                        }
+                    } else {
                         final Result out = createResult(id_id, parameters,
-                                 param, doc, ngDistance, useSimilarity, 
-                                 similarity, sdoc.score);
+                             param, doc, ngDistance, useSimilarity, 
+                             similarity, sdoc.score);
                         if (out != null) {
-                            //System.out.println("##### " + out.compare);
                             results.add(out);
                         }
                     }
-                    after = sdoc;
-                }
-                if (after != null) {
-                    scores = searcher.searchAfter(after, query, MAX_RESULT).scoreDocs;
+                } else {
+                    if (sdoc.score < 1.0) {
+                        System.out.println("Saindo score=" + sdoc.score);
+                        break;    // Only for performance
+                    }
+                    final Result out = createResult(id_id, parameters,
+                             param, doc, ngDistance, useSimilarity, 
+                             0, sdoc.score);
+                    if (out != null) {
+                        results.add(out);
+                    }
                 }
             }
         }
     }
 
+    // <id>|<ngram search text>|<content>|...|<content>
     /*
     private static void searchRaw2(final Parameters parameters,
-                                   final IndexSearcher searcher,
-                                   final NGAnalyzer analyzer,
-                                   final NGramDistance ngDistance,
-                                   final String text,
-                                   final Set<String> id_id,
-                                   final Set<Result> results)
+                                  final IndexSearcher searcher,
+                                  final NGAnalyzer analyzer,
+                                  final NGramDistance ngDistance,
+                                  final String text,
+                                  final boolean useSimilarity,
+                                  final Set<String> id_id,
+                                  final Set<Result> results)
                                             throws IOException, ParseException {
         assert parameters != null;
         assert searcher != null;
@@ -678,40 +684,48 @@ public class NGrams {
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
                        param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
+        final int MAX_RESULT = 100;
         if (!ntext.isEmpty()) {
-            final IndexReader ireader = searcher.getIndexReader();
-            final Query query0 = parser.parse(QueryParser.escape(ntext));
-            final Query q0 = query0.rewrite(ireader);
-            final String[] terms = new String[] { QueryParser.escape(ntext) };
-            final Query query = new NGramPhraseQuery(NGAnalyzer.DEF_NG_SIZE,
-                                             new PhraseQuery(20, fname, terms));
-            final Query query1 = new PhraseQuery(fname, terms);
-            final Query query2 = new TermQuery(new Term(fname,
-                                                    QueryParser.escape(ntext)));
-
-            final Query q2 = query.rewrite(ireader);
-            final TopDocs top = searcher.search(query, 10);
+            final Query query = parser.parse(QueryParser.escape(ntext));
+            final TopDocs top = searcher.search(query, MAX_RESULT);
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
             ScoreDoc after = null;
+            int tot = 0;
             outer: while (scores.length > 0) {
                 for (ScoreDoc sdoc : scores) {
-                    final Document doc = searcher.doc(sdoc.doc);
-                    final float similarity =
-                                  ngDistance.getDistance(ntext, doc.get(fname));
-                    if (similarity < lower) {
-                        break outer;
+                    if (++tot > MAX_RESULT) {
+                        //System.out.println("Saindo maxResults atingiu zero");
+                        break outer;  // Only for performance
                     }
-                    final Result out = createResult(id_id, parameters, param, 
-                                       doc, ngDistance, similarity, sdoc.score);
-                    if (out != null) {
-                        //System.out.println("##### " + out + "\n");
-                        results.add(out);
+                    if (sdoc.score < 1.0) {
+                        System.out.println("Saindo score=" + sdoc.score);
+                        break outer;    // Only for performance
+                    }
+                    final Document doc = searcher.doc(sdoc.doc);
+                    final float similarity = useSimilarity ? 
+                              ngDistance.getDistance(ntext, doc.get(fname)) : 0;                    
+                    if (similarity < lower) {
+                        if (tot < MAX_RESULT - 5) {
+                            //tot = MAX_RESULT - 5;
+                            //System.out.println("Atualizando tot=" + tot + " score=" + sdoc.score + " similarity=" + similarity+ " text=" + doc.get(fname));
+                        }
+                        
+                        //System.out.println("score=" + sdoc.score + " similarity=" + similarity + " text=" + doc.get(fname));
+                    }
+                    if ((!useSimilarity) || (similarity >= lower)) {
+                        final Result out = createResult(id_id, parameters,
+                                 param, doc, ngDistance, useSimilarity, 
+                                 similarity, sdoc.score);
+                        if (out != null) {
+                            //System.out.println("##### " + out.compare);
+                            results.add(out);
+                        }
                     }
                     after = sdoc;
                 }
                 if (after != null) {
-                    scores = searcher.searchAfter(after, query, 10).scoreDocs;
+                    scores = searcher.searchAfter(after, query, MAX_RESULT).scoreDocs;
                 }
             }
         }
@@ -777,39 +791,6 @@ public class NGrams {
         return ret;
     }
     
-    // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
-    private static Result createResult2(final Set<String> id_id,
-                                       final Parameters parameters,
-                                       final String[] param,
-                                       final Document doc,
-                                       final NGramDistance ngDistance,
-                                       final float similarity,
-                                       final float score) {
-        assert id_id != null;
-        assert parameters != null;
-        assert param != null;
-        assert doc != null;
-        assert score >= 0;
-
-        final Result ret;
-        final String id1 = param[parameters.id.pos];
-        final String id2 = (String)doc.get("id");
-        final String id1id2 = (id1.compareTo(id2) < 0) ? (id1 + "_" + id2) :
-                              (id1.compareTo(id2) > 0) ? (id2 + "_" + id1) : null;
-        
-        if (id1id2 == null) {
-            ret = null; // document is reject (one of its fields does not follow schema
-        } else {           
-            if (id_id.contains(id1id2)) {
-                ret = null;
-            } else {
-                id_id.add(id1id2);
-                ret = new NGrams.Result(param, doc, similarity, score);
-            }
-        }
-        return ret;
-    }
-
     private static boolean checkScore(final Parameters parameters,
                                       final String[] param,
                                       final float similarity,
