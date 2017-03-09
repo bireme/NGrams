@@ -1,4 +1,4 @@
-LUCENE_VERSION=6.2.0
+LUCENE_VERSION=6.4.1
 
 HOME=/home/javaapps/NGrams
 

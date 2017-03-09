@@ -29,13 +29,15 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import javax.xml.parsers.ParserConfigurationException;
@@ -45,7 +47,9 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
@@ -53,6 +57,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.spell.NGramDistance;
+import org.apache.lucene.util.Bits;
 import org.xml.sax.SAXException;
 
 /**
@@ -407,6 +412,17 @@ public class NGrams {
         return ok;
     }
 
+    /**
+     * 
+     * @param index
+     * @param schema
+     * @param inFile
+     * @param inFileEncoding
+     * @param outFile
+     * @param outFileEncoding
+     * @throws IOException
+     * @throws ParseException 
+     */
     public static void search(final NGIndex index,
                               final NGSchema schema,
                               final String inFile,
@@ -455,8 +471,7 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                //if (++cur % 1000 == 0) {
-                if (++cur % 100 == 0) {
+                if (++cur % 250 == 0) {
                     System.out.println("<<< " + cur);
                 }
 
@@ -559,8 +574,8 @@ public class NGrams {
     
     public static Set<String> searchJson(final NGIndex index,
                                          final NGSchema schema,
-                                         final String text) throws IOException,
-                                                                ParseException {
+                                         final String text) 
+                                            throws IOException, ParseException {
         if (index == null) {
             throw new NullPointerException("index");
         }
@@ -578,8 +593,8 @@ public class NGrams {
         final Set<String> id_id = new HashSet<>();
         final TreeSet<Result> results = new TreeSet<>();
 
-        searchRaw(parameters, searcher, analyzer, ngDistance, text, true, id_id,
-                                                                       results);
+        searchRaw(parameters, searcher, analyzer, ngDistance, text, true, 
+                                                                id_id, results);
         searcher.getIndexReader().close();
 
         return results2json(parameters, results.descendingSet());
@@ -611,14 +626,14 @@ public class NGrams {
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
                        param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
-        final int MAX_RESULT = 100;
+        final int MAX_RESULTS = 20;
         
         if (!ntext.isEmpty()) {
             final Query query = parser.parse(QueryParser.escape(ntext));
-            final TopDocs top = searcher.search(query, MAX_RESULT);
+            final TopDocs top = searcher.search(query, MAX_RESULTS);
             final float lower = parameters.scores.first().minValue;
             ScoreDoc[] scores = top.scoreDocs;
-            int remaining = MAX_RESULT;
+            int remaining = MAX_RESULTS;
             
             for (ScoreDoc sdoc : scores) {  
                 if (remaining-- <= 0) {
@@ -635,8 +650,7 @@ public class NGrams {
                         }
                     } else {
                         final Result out = createResult(id_id, parameters,
-                             param, doc, ngDistance, useSimilarity, 
-                             similarity, sdoc.score);
+                             param, doc, ngDistance, similarity, sdoc.score);
                         if (out != null) {
                             results.add(out);
                         }
@@ -647,8 +661,7 @@ public class NGrams {
                         break;    // Only for performance
                     }
                     final Result out = createResult(id_id, parameters,
-                             param, doc, ngDistance, useSimilarity, 
-                             0, sdoc.score);
+                             param, doc, ngDistance, 0, sdoc.score);
                     if (out != null) {
                         results.add(out);
                     }
@@ -657,88 +670,12 @@ public class NGrams {
         }
     }
 
-    // <id>|<ngram search text>|<content>|...|<content>
-    /*
-    private static void searchRaw2(final Parameters parameters,
-                                  final IndexSearcher searcher,
-                                  final NGAnalyzer analyzer,
-                                  final NGramDistance ngDistance,
-                                  final String text,
-                                  final boolean useSimilarity,
-                                  final Set<String> id_id,
-                                  final Set<Result> results)
-                                            throws IOException, ParseException {
-        assert parameters != null;
-        assert searcher != null;
-        assert analyzer != null;
-        assert ngDistance != null;
-        assert text != null;
-        assert id_id != null;
-        assert results != null;
-
-        final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
-        if (param.length != parameters.nameFields.size()) {
-            throw new IOException(text);
-        }
-        final String fname = parameters.indexed.name;
-        final QueryParser parser = new QueryParser(fname, analyzer);
-        final String ntext = Tools.limitSize(Tools.normalize(
-                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
-        final int MAX_RESULT = 100;
-        if (!ntext.isEmpty()) {
-            final Query query = parser.parse(QueryParser.escape(ntext));
-            final TopDocs top = searcher.search(query, MAX_RESULT);
-            final float lower = parameters.scores.first().minValue;
-            ScoreDoc[] scores = top.scoreDocs;
-            ScoreDoc after = null;
-            int tot = 0;
-            outer: while (scores.length > 0) {
-                for (ScoreDoc sdoc : scores) {
-                    if (++tot > MAX_RESULT) {
-                        //System.out.println("Saindo maxResults atingiu zero");
-                        break outer;  // Only for performance
-                    }
-                    if (sdoc.score < 1.0) {
-                        System.out.println("Saindo score=" + sdoc.score);
-                        break outer;    // Only for performance
-                    }
-                    final Document doc = searcher.doc(sdoc.doc);
-                    final float similarity = useSimilarity ? 
-                              ngDistance.getDistance(ntext, doc.get(fname)) : 0;                    
-                    if (similarity < lower) {
-                        if (tot < MAX_RESULT - 5) {
-                            //tot = MAX_RESULT - 5;
-                            //System.out.println("Atualizando tot=" + tot + " score=" + sdoc.score + " similarity=" + similarity+ " text=" + doc.get(fname));
-                        }
-                        
-                        //System.out.println("score=" + sdoc.score + " similarity=" + similarity + " text=" + doc.get(fname));
-                    }
-                    if ((!useSimilarity) || (similarity >= lower)) {
-                        final Result out = createResult(id_id, parameters,
-                                 param, doc, ngDistance, useSimilarity, 
-                                 similarity, sdoc.score);
-                        if (out != null) {
-                            //System.out.println("##### " + out.compare);
-                            results.add(out);
-                        }
-                    }
-                    after = sdoc;
-                }
-                if (after != null) {
-                    scores = searcher.searchAfter(after, query, MAX_RESULT).scoreDocs;
-                }
-            }
-        }
-    }
-    */
-
     // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
     private static Result createResult(final Set<String> id_id,
                                        final Parameters parameters,
                                        final String[] param,
                                        final Document doc,
                                        final NGramDistance ngDistance,
-                                       final boolean useSimilarity,
                                        final float similarity,
                                        final float score) {
         assert id_id != null;
@@ -770,16 +707,19 @@ public class NGrams {
         
         final String id1 = param[parameters.id.pos];
         final String id2 = (String)doc.get("id");
-        final String id1id2 = (id1.compareTo(id2) < 0) ? (id1 + "_" + id2) :
-                              (id1.compareTo(id2) > 0) ? (id2 + "_" + id1) : null;
+        final String idb1 = id1 + "_" + Tools.normalize(param[parameters.db.pos]);
+        final String idb2 = id2 + "_" + (String)doc.get("database");
+        final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2) 
+                                                          : (idb2 + "_" + idb1);
         
-        if ((matchedFields <= 0) || (id1id2 == null)) {
-            ret = null; // document is reject (one of its fields does not follow schema
+        if (matchedFields <= 0) {
+            ret = null; // document is reject (one of its fields does not follow schema)
         } else {
             if (checkScore(parameters, param, similarity, matchedFields, 
                                                                     maxScore)) {
+                //ret = new NGrams.Result(param, doc, similarity, score);
                 if (id_id.contains(id1id2)) {
-                    ret = null;
+                    ret = null;                
                 } else {
                     id_id.add(id1id2);
                     ret = new NGrams.Result(param, doc, similarity, score);
@@ -1000,7 +940,8 @@ public class NGrams {
             final String nfld = Tools.limitSize(Tools.normalize(fld),
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
-            ret = (nfld.compareTo(idxText) == 0) ? 0 : -1;
+            //ret = (nfld.compareTo(idxText) == 0) ? 0 : -1;
+            ret = 0; // database name should not be considered when checking duplicated
         } else {
             ret = 0;
         }
@@ -1177,8 +1118,77 @@ public class NGrams {
         }
     }
 
+    public static void export(NGIndex index,
+                              final NGSchema schema,
+                              final String outFile,
+                              final String outFileEncoding) throws IOException {
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }
+        if (outFile == null) {
+            throw new NullPointerException("outFile");
+        }
+        if (outFileEncoding == null) {
+            throw new NullPointerException("outFileEncoding");
+        }
+        final Parameters parameters = schema.getParameters();
+        final TreeMap<Integer,String> fields = new TreeMap<>();
+        final IndexReader reader = index.getIndexSearcher().getIndexReader();
+        final int maxdoc = reader.maxDoc();
+        final Bits liveDocs = MultiFields.getLiveDocs(reader);
+        final BufferedWriter writer = Files.newBufferedWriter(
+                       Paths.get(outFile), 
+                       Charset.forName(outFileEncoding), 
+                       StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        
+        boolean first = true;
+        
+        for (Map.Entry<Integer,br.bireme.ngrams.Field> entry : 
+                                                parameters.sfields.entrySet()) {
+            fields.put(entry.getKey(), entry.getValue().name + NOT_NORMALIZED_FLD);
+        }
+        
+        for (int docID = 0; docID < maxdoc; docID++) {
+            if ((liveDocs != null) && (!liveDocs.get(docID))) continue;
+            final Document doc = reader.document(docID);
+
+            if (first) {
+                first = false;
+            } else {
+                writer.newLine();
+            }
+            writer.append(doc2pipe(doc,fields));
+        }
+        writer.close();
+        reader.close();
+    }
+    
+    private static String doc2pipe(final Document doc,
+                                   final TreeMap<Integer,String> fields) {
+        final StringBuilder sb = new StringBuilder();
+        int cur = 0;
+        
+        for (Map.Entry<Integer,String> entry : fields.entrySet()) {
+            if (cur > 0) {
+                sb.append("|");
+            }
+            final int pos = entry.getKey();
+            if (cur == pos) {
+                final String fld = doc.get(entry.getValue());
+                if (fld != null) {
+                    sb.append(fld);
+                }
+            }
+            cur++;
+        }
+        return sb.toString();
+    }
+    
     private static void usage() {
-        System.err.println("Usage: NGrams (index|search1|search2)" +
+        System.err.println("Usage: NGrams (index|search1|search2|search3|export)" +
           "\n\n   index <indexPath> <confFile> <confFileEncoding> <inFile> <inFileEncoding> - index a list of documentes." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
@@ -1193,18 +1203,24 @@ public class NGrams {
           "\n       <inFileEncoding> - input file encoding" +
           "\n       <outFile> - output file. See format bellow" +
           "\n       [<outFileEncoding>] - output file encoding. Default = UTF-8" +
-          "\n\n   search2 <indexPath> <confFile> <confFileEncoding> <text> [--original]- find similar documents." +
+          "\n\n   search2 <indexPath> <confFile> <confFileEncoding> <text> [--original] - find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <text> - text used to find documents" +
           "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
-          "\n\n   search3 <indexPath> <confFile> <confFileEncoding> <text> [--original]- find similar documents - IT DOES NOT USE SIMILARITY FUNCTION." +
+          "\n\n   search3 <indexPath> <confFile> <confFileEncoding> <text> [--original] - find similar documents - IT DOES NOT USE SIMILARITY FUNCTION." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <text> - text used to find documents" +
           "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
+          "\n\n   export <indexPath> <confFile> <confFileEncoding> <outFile> <outFileEncoding> - exports all active index documents into a piped file." +
+          "\n       <indexPath> - Lucene index name/path" +
+          "\n       <confFile> - xml configuration file. See documentation for format." +
+          "\n       <confFileEncoding> - configuration file character encoding." +
+          "\n       <outFile> - output file following configuration file specification" +
+          "\n       <outFileEncoding> - output file encoding" +
           "\n\nFormat of input file <inFile> line:  <id>|<ngram index/search text>|<content>|...|<content>" +
           "\nFormat of output file line: <rank>|<similarity>|<search doc id>|<index doc id>|<ngram search text>|" + 
                      " <ngram index text>|<search_source>|<index_source>\n");
@@ -1223,36 +1239,43 @@ public class NGrams {
                                                   SAXException {
         final long startTime = new GregorianCalendar().getTimeInMillis();
 
-        if (args.length < 4) {
+        if (args.length < 5) {
             usage();
         }
                                 
         final NGSchema schema = new NGSchema("dummy", args[2], args[3]);        
         
         if (args[0].equals("index")) {
-            if (args.length != 4+2) {
+            if (args.length != 6) {
                 usage();
             }
             final NGIndex index = new NGIndex("dummy", args[1], false);
-            index(index, schema, args[3+1], args[3+2]);
+            index(index, schema, args[4], args[5]);
             System.out.println("Indexing has finished.");
         } else if (args[0].equals("search1")) {
-            if (args.length < 4+3) {
+            if (args.length < 7) {
                 usage();
-            }
-            final String encoding = (args.length == 4+4) ? args[4+3] : "UTF-8";
+            } 
             final NGIndex index = new NGIndex("dummy", args[1], true);
-            search(index, schema, args[3+1], args[3+2], args[3+3], encoding);
+            if (args.length == 7) {
+                search(index, schema, args[4], args[5], args[6], "utf-8");
+            } else {    
+                search(index, schema, args[4], args[5], args[6], args[7]);
+            }
             System.out.println("Searching has finished.");
         } else if (args[0].equals("search2")) {
             if (args.length < 4+1) {
                 usage();
             }
-            final boolean original = 
-                          (args.length > 4+1) && args[4+1].equals("--original");
             final NGIndex index = new NGIndex("dummy", args[1], true);
-            final Set<String> set = search(index, schema, args[4], original);
-            if (set.isEmpty()) {
+            Set<String> set = null;
+            
+            if (args.length == 5) {
+                set = search(index, schema, args[4], false);
+            } else if (args[5].equals("--original")) {
+                set = search(index, schema, args[4], true);
+            } else usage();
+            if ((set == null) || (set.isEmpty())) {
                 System.out.println("No result was found.");
             } else {
                 int pos = 0;
@@ -1261,22 +1284,31 @@ public class NGrams {
                 }
             }
         } else if (args[0].equals("search3")) {
-            if (args.length < 4+1) {
+            if (args.length < 5) {
                 usage();
             }
-            final boolean original = 
-                          (args.length > 4+1) && args[4+1].equals("--original");
             final NGIndex index = new NGIndex("dummy", args[1], true);
-            final Set<String> set = srcWithoutSimil(index, schema, args[4], 
-                                                                      original);
-            if (set.isEmpty()) {
+            Set<String> set = null;
+            
+            if (args.length == 5) {
+                set = srcWithoutSimil(index, schema, args[4], false);
+            } else if (args[5].equals("--original")) {
+                set = srcWithoutSimil(index, schema, args[4], true);
+            } else usage();
+            if ((set == null) || (set.isEmpty())) {
                 System.out.println("No result was found.");
             } else {
                 int pos = 0;
                 for(String res : set) {
                     System.out.println((++pos) + ") " + res);
                 }
-            }    
+            }
+        } else if (args[0].equals("export")) {    
+            if (args.length != 6) {
+                usage();
+            }
+            final NGIndex index = new NGIndex("dummy", args[1], true);
+            export(index, schema, args[4], args[5]);
         } else {
             usage();
         }

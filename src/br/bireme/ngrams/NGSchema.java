@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import javax.xml.parsers.ParserConfigurationException;
 import org.xml.sax.SAXException;
 
