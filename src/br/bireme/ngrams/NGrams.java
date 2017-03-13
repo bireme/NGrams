@@ -114,7 +114,8 @@ public class NGrams {
     public static void index(final NGIndex index,
                              final NGSchema schema,
                              final String inFile,
-                             final String inFileEncoding) throws IOException {
+                             final String inFileEncoding) throws IOException, 
+                                                                ParseException {
         if (index == null) {
             throw new NullPointerException("index");
         }
@@ -158,7 +159,8 @@ public class NGrams {
                                         final IndexWriter writer,
                                         final NGSchema schema,
                                         final String pipedDoc) 
-                                                            throws IOException {
+                                                            throws IOException, 
+                                                                ParseException {
         if (index == null) {
             throw new NullPointerException("index");
         }
@@ -190,6 +192,15 @@ public class NGrams {
         final Document doc = createDocument(flds, split);
         
         if (doc != null) {
+            final String id_ = Tools.limitSize(Tools.normalize(id), 
+                                                       MAX_NG_TEXT_SIZE).trim();
+            final String db_ = Tools.limitSize(Tools.normalize(dbName), 
+                                                       MAX_NG_TEXT_SIZE).trim();
+            final QueryParser parser = new QueryParser("", index.getAnalyzer());
+            final Query query = parser.parse(IdField.FNAME + ":\"" + id_ + 
+                          "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");
+                                    
+            writer.deleteDocuments(query);
             writer.addDocument(doc);
         }
                 
@@ -199,7 +210,7 @@ public class NGrams {
     public static void indexDocuments(final NGSchema schema,
                                       final NGIndex index,
                                       final String multiLinePipedDoc) 
-                                                            throws IOException {
+                                                            throws IOException, ParseException {
         if (schema == null) {
             throw new NullPointerException("schema");
         }        
@@ -223,15 +234,34 @@ public class NGrams {
                         throw new IOException("invalid number of fields: [" + 
                                                                     line + "]");
                     }
+                    final String id = split[parameters.id.pos];
+                    if (id.isEmpty()) {
+                        throw new IOException("id");
+                    }
+                    final String dbName = split[parameters.db.pos];
+                    if (dbName.isEmpty()) {
+                        throw new IOException("dbName");
+                    }
                     final Document doc = createDocument(flds, split);
                     if (doc != null) {
+                        final String id_ = Tools.limitSize(Tools.normalize(id), 
+                                                       MAX_NG_TEXT_SIZE).trim();
+                        final String db_ = Tools.limitSize(Tools.normalize(dbName), 
+                                                       MAX_NG_TEXT_SIZE).trim();
+                        final QueryParser parser = new QueryParser("", 
+                                                           index.getAnalyzer());
+                        final Query query = parser.parse(IdField.FNAME + ":\"" + 
+                            id_ + "\" AND " + DatabaseField.FNAME + ":\"" + db_ 
+                                                                        + "\"");
+                                    
+                        writer.deleteDocuments(query);
                         writer.addDocument(doc);
                     }
                 }
             }
         }
     }
-    
+        
     public static String json2pipe(final NGSchema schema,
                                    final String indexName,
                                    final String id,
@@ -331,7 +361,8 @@ public class NGrams {
                         doc = null;
                         break;
                     }
-                    id = content.trim();
+                    id = Tools.limitSize(
+                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StringField(fname, id, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, id));
                 } else {
