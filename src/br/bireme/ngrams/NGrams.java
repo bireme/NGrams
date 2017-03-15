@@ -201,9 +201,9 @@ public class NGrams {
                           "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");
                                     
             writer.deleteDocuments(query);
- System.out.print("vou escrever");           
+ //System.out.print("vou escrever");           
             writer.addDocument(doc);
- System.out.println("  - OK");           
+ //System.out.println("  - OK");           
         }
                 
         return (doc != null);
