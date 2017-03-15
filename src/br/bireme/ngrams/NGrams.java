@@ -7,7 +7,7 @@
     NGrams is free software: you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public License as
     published by the Free Software Foundation, either version 2.1 of
-    the License, or (at y   our option) any later version.
+    the License, or (at your option) any later version.
 
     NGrams is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -361,10 +361,11 @@ public class NGrams {
                         doc = null;
                         break;
                     }
-                    id = Tools.limitSize(
-                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
+                    id = content.trim();
+                    /*id = Tools.limitSize(
+                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();*/
                     doc.add(new StringField(fname, id, Field.Store.YES));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, id));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, content.trim()));
                 } else {
                     final String ncontent = Tools.limitSize(
                              Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
