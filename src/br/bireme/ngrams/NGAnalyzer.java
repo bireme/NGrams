@@ -59,8 +59,9 @@ public class NGAnalyzer extends Analyzer {
 
     @Override
     protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
-        final Tokenizer source = search
-                        ? new NGTokenizer(ngramSize) // generate side by size ngrams
+        final Tokenizer source;
+        
+        source = search ? new NGTokenizer(ngramSize) // generate side by size ngrams
                         : new NGramTokenizer(ngramSize, ngramSize); // generate all ngrams
         
         // Não funciona - se duas strings diferem de apenas uma letra,

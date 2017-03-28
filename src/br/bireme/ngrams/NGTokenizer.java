@@ -56,7 +56,7 @@ public class NGTokenizer extends Tokenizer {
     
     @Override
     public final boolean incrementToken() throws IOException {
-        clearAttributes();        
+        clearAttributes();
         
         return getNextToken();
     }
