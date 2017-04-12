@@ -1,4 +1,4 @@
-LUCENE_VERSION=6.4.2
+LUCENE_VERSION=6.5.0
 
 #HOME=/home/javaapps/NGrams
 HOME=/home/heitor/Projetos/NGrams
