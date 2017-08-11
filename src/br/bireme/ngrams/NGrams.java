@@ -687,6 +687,7 @@ public class NGrams {
         assert id_id != null;
         assert results != null;
 
+
         final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
         if (param.length != parameters.nameFields.size()) {
             throw new IOException(text);
