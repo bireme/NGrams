@@ -30,6 +30,7 @@ import java.text.Normalizer;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -189,19 +190,57 @@ public class Tools {
     }
 
     /**
+     * 
+     * @param in input String
+     * @param occSeparator string separating each occurrence
+     * @return the input string with the occurences ordered
+     */
+    public static String orderOcc(final String in,
+                                  final String occSeparator) {
+        if (in == null) return null;
+        if (occSeparator == null) return in;
+        
+        final String[] split = in.split(occSeparator);
+        String out = "";
+        
+        if (split.length == 1) {
+            out = in;
+        } else {
+            final TreeSet<String> set = new TreeSet<>();
+            boolean first = true;
+            
+            for (String occ1: split) {
+                set.add(occ1.trim());
+            }
+            for (String occ2: set) {
+                if (first) {
+                    first = false;
+                } else {
+                    out += occSeparator;
+                }
+                out += occ2;
+            }
+        }
+        return out;
+    }
+    
+    /**
      *
      * @param in input String
+     * @param occSeparator string separating each occurrence
      * @return input string with every not digit-alphabetic charater removed,
      *         accents removed and all converted to lower case.
      */
-    public static String normalize(final String in) {
+    public static String normalize(final String in,
+                                   final String occSeparator) {
         final String ret;
 
         if (in == null) {
             ret = null;
         } else {
-            final String aux = Normalizer.normalize(in.toLowerCase(),
-                              Normalizer.Form.NFD).replaceAll("[^a-z0-9]", " ");
+            final String in2 = orderOcc(in.trim().toLowerCase(), occSeparator);
+            final String aux = Normalizer.normalize(in2, Normalizer.Form.NFD).
+                                                   replaceAll("[^a-z0-9]", " ");
             final int len = aux.length();
             final StringBuilder builder = new StringBuilder();
             boolean wasNumber = false;

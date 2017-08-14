@@ -22,6 +22,7 @@
 package br.bireme.ngrams;
 
 import static br.bireme.ngrams.NGrams.MAX_NG_TEXT_SIZE;
+import static br.bireme.ngrams.NGrams.OCC_SEPARATOR;
 import java.io.IOException;
 
 /**
@@ -45,9 +46,9 @@ public class NGDistance {
 
         if (args.length > 2) {
             if (args[2].equals("-normalize")) {
-                str1 = Tools.limitSize(Tools.normalize(args[0]),
+                str1 = Tools.limitSize(Tools.normalize(args[0], OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-                str2 = Tools.limitSize(Tools.normalize(args[1]),
+                str2 = Tools.limitSize(Tools.normalize(args[1], OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             } else {
                 str1 = null;

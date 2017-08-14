@@ -113,6 +113,12 @@ public class NGrams {
       IndexedNGramField.
     */
     public static final String NOT_NORMALIZED_FLD = "~notnormalized";
+    
+    /*
+       String delimiter of repetitive occurrences
+    */
+    public static final String OCC_SEPARATOR = "//@//";
+    
 
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final NGIndex index,
@@ -204,9 +210,9 @@ public class NGrams {
         final Document doc = createDocument(flds, split);
 
         if (doc != null) {
-            final String id_ = Tools.limitSize(Tools.normalize(id),
+            final String id_ = Tools.limitSize(Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-            final String db_ = Tools.limitSize(Tools.normalize(dbName),
+            final String db_ = Tools.limitSize(Tools.normalize(dbName, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             /*final QueryParser parser = new QueryParser("", index.getAnalyzer());
             final Query query = parser.parse(IdField.FNAME + ":\"" + id_ +
@@ -271,9 +277,11 @@ public class NGrams {
                     }
                     final Document doc = createDocument(flds, split);
                     if (doc != null) {
-                        final String id_ = Tools.limitSize(Tools.normalize(id),
+                        final String id_ = Tools.limitSize(
+                                              Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-                        final String db_ = Tools.limitSize(Tools.normalize(dbName),
+                        final String db_ = 
+                            Tools.limitSize(Tools.normalize(dbName, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
                         final QueryParser parser = new QueryParser("",
                                                            index.getAnalyzer());
@@ -306,7 +314,6 @@ public class NGrams {
             throw new NullPointerException("sjson");
         }
 
-        final String occSeparator = "//@//";
         final Parameters parameters = schema.getParameters();
         final String indexFldName = parameters.db.name;
         final String idFldName = parameters.id.name;
@@ -335,7 +342,7 @@ public class NGrams {
                             if (first) {
                                 first = false;
                             } else {
-                                ret.append(occSeparator);
+                                ret.append(OCC_SEPARATOR);
                             }
                             ret.append((String)obj2);
                         }
@@ -369,7 +376,8 @@ public class NGrams {
                         break;
                     }
                     final String ncontent = Tools.limitSize(
-                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
+                        Tools.normalize(content, OCC_SEPARATOR), MAX_NG_TEXT_SIZE)
+                                                                         .trim();
                     doc.add(new TextField(fname, ncontent, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
@@ -379,7 +387,8 @@ public class NGrams {
                         break;
                     }
                     dbName = Tools.limitSize(
-                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
+                             Tools.normalize(content, OCC_SEPARATOR), 
+                                                       MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StringField(fname, dbName, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
@@ -389,12 +398,15 @@ public class NGrams {
                         break;
                     }
                     id = Tools.limitSize(
-                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
+                             Tools.normalize(content, OCC_SEPARATOR), 
+                                                       MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StringField(fname, id, Field.Store.YES));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, content.trim()));
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, 
+                                                               content.trim()));
                 } else {
                     final String ncontent = Tools.limitSize(
-                             Tools.normalize(content), MAX_NG_TEXT_SIZE).trim();
+                             Tools.normalize(content, OCC_SEPARATOR), 
+                                                       MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StoredField(fname, ncontent));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
@@ -408,7 +420,8 @@ public class NGrams {
             if (id == null) {
                 throw new IOException("id");
             }
-            doc.add(new StringField("db_id", Tools.normalize(dbName + "_" + id),
+            doc.add(new StringField("db_id", 
+                              Tools.normalize(dbName + "_" + id, OCC_SEPARATOR),
                                                                     Store.YES));
         }
         return doc;
@@ -695,7 +708,8 @@ public class NGrams {
         final String fname = parameters.indexed.name;
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
-                       param[parameters.indexed.pos]), MAX_NG_TEXT_SIZE).trim();
+                                 param[parameters.indexed.pos], OCC_SEPARATOR), 
+                                                       MAX_NG_TEXT_SIZE).trim();
         final int MAX_RESULTS = 20;
 
         if (!ntext.isEmpty()) {
@@ -777,7 +791,8 @@ public class NGrams {
 
         final String id1 = param[parameters.id.pos];
         final String id2 = (String)doc.get("id");
-        final String idb1 = id1 + "_" + Tools.normalize(param[parameters.db.pos]);
+        final String idb1 = id1 + "_" + Tools.normalize(param[parameters.db.pos], 
+                                                                 OCC_SEPARATOR);
         final String idb2 = id2 + "_" + (String)doc.get("database");
         final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2)
                                                           : (idb2 + "_" + idb1);
@@ -871,8 +886,9 @@ public class NGrams {
                 String fld = param[idx];
                 fld = (fld == null) ? "" : fld.trim().replace('|', '!');
                 builder.append("|").append(fld);
-                builder.append("|").append(Tools.limitSize(Tools.normalize(fld),
-                                                       MAX_NG_TEXT_SIZE));
+                builder.append("|").append(
+                    Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
+                                                             MAX_NG_TEXT_SIZE));
             }
             for (br.bireme.ngrams.Field field: flds) {
                 final String fldN = doc.get(field.name);
@@ -990,24 +1006,24 @@ public class NGrams {
         if ((rfldPos != -1) && (param[rfldPos].isEmpty())) {
             ret = -1;
         } else if (field instanceof IndexedNGramField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld),
+            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             ret = compareIndexedNGramFields(ngDistance, field, nfld, doc);
         } else if (field instanceof NGramField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld),
+            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             ret = compareNGramFields(ngDistance, field, nfld, doc);
         } else if (field instanceof RegExpField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld),
+            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             ret = compareRegExpFields(field, nfld, doc);
         } else if (field instanceof ExactField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld),
+            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
         } else if (field instanceof DatabaseField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld),
+            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             //ret = (nfld.compareTo(idxText) == 0) ? 0 : -1;
