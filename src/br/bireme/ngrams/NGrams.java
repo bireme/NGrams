@@ -210,19 +210,19 @@ public class NGrams {
         final Document doc = createDocument(flds, split);
 
         if (doc != null) {
-            final String id_ = Tools.limitSize(Tools.normalize(id, OCC_SEPARATOR),
+            /*final String id_ = Tools.limitSize(Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             final String db_ = Tools.limitSize(Tools.normalize(dbName, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-            /*final QueryParser parser = new QueryParser("", index.getAnalyzer());
+            final QueryParser parser = new QueryParser("", index.getAnalyzer());
             final Query query = parser.parse(IdField.FNAME + ":\"" + id_ +
-                          "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");*/            
+                          "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");            
             final Query idQuery = new TermQuery(new Term(IdField.FNAME, id_));
             final Query dbQuery = new TermQuery(new Term(DatabaseField.FNAME, db_));
             final BooleanQuery.Builder builder = new BooleanQuery.Builder();
             builder.add(idQuery,  BooleanClause.Occur.MUST);
             builder.add(dbQuery,  BooleanClause.Occur.MUST);
-            writer.deleteDocuments(builder.build());
+            writer.deleteDocuments(builder.build());*/
  //System.out.print("vou escrever");
  //try {
             writer.addDocument(doc);
@@ -277,7 +277,7 @@ public class NGrams {
                     }
                     final Document doc = createDocument(flds, split);
                     if (doc != null) {
-                        final String id_ = Tools.limitSize(
+                        /*final String id_ = Tools.limitSize(
                                               Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
                         final String db_ = 
@@ -289,7 +289,7 @@ public class NGrams {
                             id_ + "\" AND " + DatabaseField.FNAME + ":\"" + db_
                                                                         + "\"");
 
-                        writer.deleteDocuments(query);
+                        writer.deleteDocuments(query);*/
                         writer.addDocument(doc);
                     }
                 }
