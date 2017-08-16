@@ -240,7 +240,7 @@ public class Tools {
         } else {
             final String in2 = orderOcc(in.trim().toLowerCase(), occSeparator);
             final String aux = Normalizer.normalize(in2, Normalizer.Form.NFD).
-                                                   replaceAll("[^a-z0-9]", " ");
+                                               replaceAll("[^a-z0-9]", " ");
             final int len = aux.length();
             final StringBuilder builder = new StringBuilder();
             boolean wasNumber = false;
