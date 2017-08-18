@@ -124,7 +124,8 @@ class Parameters {
         }
         for (Field fld : nameFields.values()) {
             final String reqField = fld.requiredField;
-            if ((reqField != null) && (!nameFields.containsKey(reqField))) {
+            if ((reqField != null) && (!reqField.isEmpty()) &&
+                                          (!nameFields.containsKey(reqField))) {
                 throw new IllegalArgumentException("invalid requiredField = " 
                                                                     + reqField);
             }
