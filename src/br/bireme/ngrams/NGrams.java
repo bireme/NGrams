@@ -476,7 +476,7 @@ public class NGrams {
                 checked.add(fieldName);
 
                 ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
-                        : (requiredField == null) ? true
+                        : ((requiredField == null)||(requiredField.isEmpty())) ? true
                         : checkPresence(requiredField, fields, param, checked);
             }
         }
