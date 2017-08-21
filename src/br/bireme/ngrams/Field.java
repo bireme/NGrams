@@ -68,7 +68,7 @@ class Field {
         this.content = content;
         this.contentMatch = (contentMatch == null) ? Status.OPTIONAL
                                                    : contentMatch;
-        this.requiredField = requiredField;
+        this.requiredField = (requiredField == null) ? "" : requiredField;
         this.pos = pos;
     }
 
