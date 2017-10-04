@@ -95,7 +95,8 @@ public class NGIndex {
         if (append) {
             cfg.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
         } else {
-            cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+            //cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+            cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
         }
 
         return new IndexWriter(directory, cfg);
