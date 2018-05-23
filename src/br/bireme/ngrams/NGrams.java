@@ -28,6 +28,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -41,6 +42,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import javax.xml.parsers.ParserConfigurationException;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Store;
@@ -50,15 +52,11 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MultiFields;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.spell.NGramDistance;
 import org.apache.lucene.util.Bits;
@@ -113,12 +111,12 @@ public class NGrams {
       IndexedNGramField.
     */
     public static final String NOT_NORMALIZED_FLD = "~notnormalized";
-    
+
     /*
        String delimiter of repetitive occurrences
     */
     public static final String OCC_SEPARATOR = "//@//";
-    
+
 
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final NGIndex index,
@@ -148,16 +146,19 @@ public class NGrams {
             writer.deleteAll();
 
             while (true) {
-                final String line = reader.readLine();
+                final String line;
+                try {
+                    line = reader.readLine();
+                } catch (MalformedInputException mie) {
+                    System.err.println("Line with another encoding. Line number:"
+                                                                     + (++cur));
+                    continue;
+                }
                 if (line == null) {
                     break;
                 }
                 final String lineT = line.trim();
                 if (! lineT.isEmpty()) {
-                    if (wrongEncoding(charset, line)) {
-                        System.err.println(
-                                    "Line with another encoding. Line:" + line);
-                    }
                     indexDocument(index, writer, schema, line);
                 }
                 if (++cur % 100000 == 0) {
@@ -187,16 +188,16 @@ public class NGrams {
         if (pipedDoc == null) {
             throw new NullPointerException("pipedDoc");
         }
-        if (wrongEncoding(Charset.forName("UTF-8"), pipedDoc)) {
+        if (!isUtf8Encoding(pipedDoc)) {
             throw new IOException("Invalid encoded string");
         }
-        
+
         final Parameters parameters = schema.getParameters();
         if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos) {
             throw new IOException("invalid number of fields: [" + pipedDoc + "]");
         }
-
-        final String[] split = pipedDoc.replace(':', ' ').trim()
+        final String pipedDoc2 = StringEscapeUtils.unescapeHtml4(pipedDoc);
+        final String[] split = pipedDoc2.replace(':', ' ').trim()
                                            .split(" *\\| *", Integer.MAX_VALUE);
         final String id = split[parameters.id.pos];
         if (id.isEmpty()) {
@@ -216,7 +217,7 @@ public class NGrams {
                                                        MAX_NG_TEXT_SIZE).trim();
             final QueryParser parser = new QueryParser("", index.getAnalyzer());
             final Query query = parser.parse(IdField.FNAME + ":\"" + id_ +
-                          "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");            
+                          "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");
             final Query idQuery = new TermQuery(new Term(IdField.FNAME, id_));
             final Query dbQuery = new TermQuery(new Term(DatabaseField.FNAME, db_));
             final BooleanQuery.Builder builder = new BooleanQuery.Builder();
@@ -239,7 +240,7 @@ public class NGrams {
     public static void indexDocuments(final NGSchema schema,
                                       final NGIndex index,
                                       final String multiLinePipedDoc)
-                                                            throws IOException, ParseException {
+                                            throws IOException, ParseException {
         if (schema == null) {
             throw new NullPointerException("schema");
         }
@@ -249,10 +250,10 @@ public class NGrams {
         if (multiLinePipedDoc == null) {
             throw new NullPointerException("multiLinePipedDoc");
         }
-        if (wrongEncoding(Charset.forName("UTF-8"), multiLinePipedDoc)) {
+        if (!isUtf8Encoding(multiLinePipedDoc)) {
             throw new IOException("Invalid encoded string");
         }
-        
+
         final Parameters parameters = schema.getParameters();
         final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
 
@@ -261,7 +262,8 @@ public class NGrams {
 
             for (String line: mlPipedDoc) {
                 if (!line.isEmpty()) {
-                    final String[] split = line.replace(':', ' ').trim()
+                    final String line2 = StringEscapeUtils.unescapeHtml4(line);
+                    final String[] split = line2.replace(':', ' ').trim()
                             .split(" *\\| *", Integer.MAX_VALUE);
                     if (split.length < parameters.maxIdxFieldPos) {
                         throw new IOException("invalid number of fields: [" +
@@ -280,7 +282,7 @@ public class NGrams {
                         /*final String id_ = Tools.limitSize(
                                               Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-                        final String db_ = 
+                        final String db_ =
                             Tools.limitSize(Tools.normalize(dbName, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
                         final QueryParser parser = new QueryParser("",
@@ -387,7 +389,7 @@ public class NGrams {
                         break;
                     }
                     dbName = Tools.limitSize(
-                             Tools.normalize(content, OCC_SEPARATOR), 
+                             Tools.normalize(content, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StringField(fname, dbName, Field.Store.YES));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
@@ -398,14 +400,14 @@ public class NGrams {
                         break;
                     }
                     id = Tools.limitSize(
-                             Tools.normalize(content, OCC_SEPARATOR), 
+                             Tools.normalize(content, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StringField(fname, id, Field.Store.YES));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD, 
+                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
                                                                content.trim()));
                 } else {
                     final String ncontent = Tools.limitSize(
-                             Tools.normalize(content, OCC_SEPARATOR), 
+                             Tools.normalize(content, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
                     doc.add(new StoredField(fname, ncontent));
                     doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
@@ -420,7 +422,7 @@ public class NGrams {
             if (id == null) {
                 throw new IOException("id");
             }
-            doc.add(new StringField("db_id", 
+            doc.add(new StringField("db_id",
                               Tools.normalize(dbName + "_" + id, OCC_SEPARATOR),
                                                                     Store.YES));
         }
@@ -482,16 +484,21 @@ public class NGrams {
         }
         return ok;
     }
-    
-    private static boolean wrongEncoding(final Charset charset,
-                                         final String text) {
-        /*assert charset != null;
+
+    /**
+     * Checks is the string encoding is utf-8.
+     * @param charset character code set
+     * @param text input text to check the encoding
+     * @return 
+     */
+    private static boolean isUtf8Encoding(final String text) {
         assert text != null;
-        
-        final String checked = new String(text.getBytes(charset), charset);
-        
-        return !checked.equals(text);*/
-        return false;
+
+        final Charset utf8 = Charset.availableCharsets().get("UTF-8");
+        final byte[] b1 = text.getBytes(utf8) ;
+        final byte[] b2 = new String(b1, utf8).getBytes(utf8);
+
+        return java.util.Arrays.equals(b1, b2);
     }
 
     /**
@@ -566,7 +573,7 @@ public class NGrams {
                     }
                     if (checkFieldsPresence(parameters.nameFields,split)) {
                         searchRaw(parameters, searcher, analyzer, ngDistance,
-                                                    line, true, id_id, results);
+                                                    tline, true, id_id, results);
                         if (!results.isEmpty()) {
                             writeOutput(parameters, results, writer);
                         }
@@ -674,8 +681,9 @@ public class NGrams {
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
         final TreeSet<Result> results = new TreeSet<>();
+        final String ttext = text.replace(':', ' ').trim();
 
-        searchRaw(parameters, searcher, analyzer, ngDistance, text, true,
+        searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
                                                                 id_id, results);
         searcher.getIndexReader().close();
 
@@ -700,15 +708,15 @@ public class NGrams {
         assert id_id != null;
         assert results != null;
 
-
-        final String[] param = text.trim().split(" *\\| *", Integer.MAX_VALUE);
+        final String text2 = StringEscapeUtils.unescapeHtml4(text);
+        final String[] param = text2.trim().split(" *\\| *", Integer.MAX_VALUE);
         if (param.length != parameters.nameFields.size()) {
             throw new IOException(text);
         }
         final String fname = parameters.indexed.name;
         final QueryParser parser = new QueryParser(fname, analyzer);
         final String ntext = Tools.limitSize(Tools.normalize(
-                                 param[parameters.indexed.pos], OCC_SEPARATOR), 
+                                 param[parameters.indexed.pos], OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
         final int MAX_RESULTS = 20;
 
@@ -791,7 +799,7 @@ public class NGrams {
 
         final String id1 = param[parameters.id.pos];
         final String id2 = (String)doc.get("id");
-        final String idb1 = id1 + "_" + Tools.normalize(param[parameters.db.pos], 
+        final String idb1 = id1 + "_" + Tools.normalize(param[parameters.db.pos],
                                                                  OCC_SEPARATOR);
         final String idb2 = id2 + "_" + (String)doc.get("database");
         final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2)

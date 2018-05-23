@@ -124,12 +124,23 @@ class Parameters {
         }
         for (Field fld : nameFields.values()) {
             final String reqField = fld.requiredField;
-            if ((reqField != null) && (!reqField.isEmpty()) &&
-                                          (!nameFields.containsKey(reqField))) {
-                System.out.println("==>" + "null".equals(reqField));
-                throw new IllegalArgumentException("invalid requiredField = [" 
+            if ((reqField != null) && (!reqField.isEmpty())) {
+                final Field otherField = nameFields.get(reqField);
+                                          
+                if (otherField == null) {
+                    throw new IllegalArgumentException("invalid requiredField = [" 
                                                               + reqField + "]");
-            }
+                }
+                // To avoid cyclic graph with requiredField, it is required that
+                // each requiredField point to a field which pos is lower than
+                // the current one.
+                if (otherField.pos >= fld.pos) {
+                    throw new IllegalArgumentException("required Field(" + 
+                        otherField.name +") pos ["+ otherField.pos + 
+                        "] >= current field(" + fld.name + ") pos [" + 
+                        fld.pos + "]");
+                }                    
+            }                        
         }
     }
 }

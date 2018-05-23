@@ -111,9 +111,13 @@ public class NGSchema {
 
     public String getSchemaJson() {
         final StringBuilder builder = new StringBuilder();
-        final Collection<Field> fields = parameters.nameFields.values();
+        final Collection<Field> flds = parameters.nameFields.values();
+        final Map<Integer,Field> map = new TreeMap<>();
         boolean first = true;
 
+        for (Field fld: flds) map.put(fld.pos, fld);
+        final Collection<Field> fields = map.values();
+        
         builder.append("{");
         builder.append("\"name\":\"");
         builder.append(name);
@@ -127,11 +131,12 @@ public class NGSchema {
                 builder.append(",");
             }
             builder.append("{");
-            builder.append("\"name\":\"");
-            builder.append(fld.name);
-            builder.append("\",\"pos\":");
+            builder.append("\"pos\":");
             builder.append(fld.pos);
-            builder.append(",\"type\":\"");
+            builder.append(",\"name\":\"");
+            builder.append(fld.name);
+            
+            builder.append("\",\"type\":\"");
             if (fld instanceof IdField) {
                 builder.append("idField");
             } else if (fld instanceof DatabaseField) {
@@ -147,7 +152,13 @@ public class NGSchema {
             } else if (fld instanceof NGramField) {
                 builder.append("nGramField");
             }
-            builder.append("\"}");
+            builder.append("\",\"presence\":\"");
+            builder.append(fld.presence.name().toLowerCase());
+            builder.append("\",\"requiredField\":\"");
+            builder.append(fld.requiredField);
+            builder.append("\",\"contentMatch\":\"");
+            builder.append(fld.contentMatch.name().toLowerCase());
+            builder.append("\"}");            
         }
         builder.append("]}");
 
