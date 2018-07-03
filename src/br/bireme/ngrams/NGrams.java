@@ -296,7 +296,7 @@ public class NGrams {
                     }
                 }
             }
-            writer.forceMerge(1); // optimize index                        
+            //writer.forceMerge(1); // optimize index                        
         }
     }
 
