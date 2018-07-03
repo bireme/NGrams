@@ -88,14 +88,14 @@ public class NGIndex {
         assert indexPath != null;
         assert analyzer != null;
 
-        final Directory directory = FSDirectory.open(
-                                                  new File(indexPath).toPath());
+        final File dir = new File(indexPath);
+        final Directory directory = FSDirectory.open(dir.toPath());
         final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);
         
         if (append) {
             cfg.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
         } else {
-            //cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+            new File(dir, "write.lock").delete();
             cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
         }
 

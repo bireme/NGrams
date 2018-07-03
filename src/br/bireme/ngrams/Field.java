@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  * date: 20150707
  */
 
-class Field {
+public class Field {
     public enum Status { REQUIRED,  // the field presence is required
                          OPTIONAL,  // the field can be missing
                          MAX_SCORE  // if the field is missing then
@@ -39,12 +39,12 @@ class Field {
                                     // instead of minScore.
                        }
 
-    final String name;         // field's name
-    final Status presence;     // tells if the field presence is 'required', 'optional' or 'optional requiring max score'
-    final Set<String> content; // contents that require max score if this field is/is_not equals to
-    final Status contentMatch; // this field has to be equal to the indexed one if 'required', 'optional' if not and 'optional requiring max score' if not.
-    final String requiredField;// name of another field which is required by this field or null if not
-    final int pos;            // position inside line A|B|C|D|...|H (piped expression/file)
+    public final String name;         // field's name
+    public final Status presence;     // tells if the field presence is 'required', 'optional' or 'optional requiring max score'
+    public final Set<String> content; // contents that require max score if this field is/is_not equals to
+    public final Status contentMatch; // this field has to be equal to the indexed one if 'required', 'optional' if not and 'optional requiring max score' if not.
+    public final String requiredField;// name of another field which is required by this field or null if not
+    public final int pos;            // position inside line A|B|C|D|...|H (piped expression/file)
 
     Field(final String name,
           final int pos) {

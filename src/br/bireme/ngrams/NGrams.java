@@ -296,6 +296,7 @@ public class NGrams {
                     }
                 }
             }
+            writer.forceMerge(1); // optimize index                        
         }
     }
 
@@ -438,7 +439,7 @@ public class NGrams {
      */
     private static boolean checkFieldsPresence(final Map<String,
                                                  br.bireme.ngrams.Field> fields,
-                                               final String[] param) {
+                                       final String[] param) {
         assert fields != null;
         assert param != null;
 
@@ -1031,9 +1032,9 @@ public class NGrams {
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
         } else if (field instanceof DatabaseField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            final String idxText = (String)doc.get(field.name);
+            //final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
+            //                                           MAX_NG_TEXT_SIZE).trim();
+            //final String idxText = (String)doc.get(field.name);
             //ret = (nfld.compareTo(idxText) == 0) ? 0 : -1;
             ret = 0; // database name should not be considered when checking duplicated
         } else {
@@ -1054,6 +1055,7 @@ public class NGrams {
 
         final int ret;
         final String text = (String)doc.get(field.name);
+        assert text != null;
 
         if (fld.isEmpty()) {
             ret = -1;
@@ -1077,6 +1079,7 @@ public class NGrams {
 
         final int ret;
         final String idxText = (String)doc.get(field.name);
+        assert idxText != null;
 
         if (fld.isEmpty()) {
             if (field.presence == Status.REQUIRED) {
@@ -1118,6 +1121,7 @@ public class NGrams {
         assert doc != null;
 
         final String idxText = (String)doc.get(field.name);
+        assert idxText != null;
         final RegExpField regExp = (RegExpField)field;
         final Matcher mat = regExp.matcher;
         final int ret;

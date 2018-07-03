@@ -31,7 +31,7 @@ import java.util.TreeSet;
  * @author Heitor Barbieri
  * date: 20150720
  */
-class Parameters {
+public class Parameters {
     final TreeSet<Score> scores;
     final DatabaseField db;
     final IdField id;
@@ -97,6 +97,10 @@ class Parameters {
         this.maxIdxFieldPos = maxPos;
         
         checkFields(nfields);
+    }
+    
+    public Map<String,Field> getNameFields() {
+        return nameFields;
     }
     
     private int addField(final Field fld,
