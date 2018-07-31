@@ -152,8 +152,6 @@ public class NGSchema {
             } else if (fld instanceof NGramField) {
                 builder.append("nGramField");
             }
-            builder.append("\",\"presence\":\"");
-            builder.append(fld.presence.name().toLowerCase());
             builder.append("\",\"requiredField\":\"");
             builder.append(fld.requiredField);
             builder.append("\",\"contentMatch\":\"");
@@ -175,25 +173,22 @@ public class NGSchema {
         ret += "\n\t<databaseField pos=\"" + parameters.db.pos + "\"/>";
         ret += "\n\t<idField pos=\"" + parameters.id.pos + "\"/>";
         ret += "\n\t<idxNGramField pos=\"" + parameters.indexed.pos + "\" name=\"" +
-                parameters.indexed.name + "\" minScore=\"" +  
-                parameters.indexed.minScore + "\"/>";
+                parameters.indexed.name + "\"/>";
         
         for (ExactField field: parameters.exacts) {
             ret += "\n\t<exactField pos=\"" + field.pos + "\" name=\"" +
                    field.name + "\" requiredField=\"" + field.requiredField +
-                   "\" presence=\"" + field.presence + "\" match=\"" + 
-                   field.contentMatch.name() + "\"/>";
+                   "\" match=\"" + field.contentMatch.name() + "\"/>";
         }
         for (NGramField field: parameters.ngrams) {
             ret += "\n\t<nGramField pos=\"" + field.pos + "\" name=\"" +
                    field.name + "\" minScore=\"" + field.minScore + 
-                   "\" presence=\"" + field.presence + "\" match=\"" + 
-                   field.contentMatch.name() + "\"/>";
+                   "\" match=\"" + field.contentMatch.name() + "\"/>";
         }
         for (RegExpField field: parameters.regexps) {
             ret += "\n\t<regExpField pos=\"" + field.pos + "\" name=\"" +
                    field.name + "\" requiredField=\"" + field.requiredField +
-                   "\" presence=\"" + field.presence + "\" match=\"" + 
+                   "\" match=\"" + 
                    field.contentMatch.name() + "\" pattern=\"" + field.matcher.
                    pattern().pattern() + "\" groupNum=\"" + field.groupNum + "\"/>";
         }

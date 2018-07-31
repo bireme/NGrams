@@ -222,7 +222,7 @@ public class NGrams {
             final Query dbQuery = new TermQuery(new Term(DatabaseField.FNAME, db_));
             final BooleanQuery.Builder builder = new BooleanQuery.Builder();
             builder.add(idQuery,  BooleanClause.Occur.MUST);
-            builder.add(dbQuery,  BooleanClause.Occur.MUST);
+            builder.add(dbQuery,  BooleanClause.Occur.MUST);doc
             writer.deleteDocuments(builder.build());*/
  //System.out.print("vou escrever");
  //try {
@@ -364,7 +364,7 @@ public class NGrams {
         assert fields != null;
         assert flds != null;
 
-        Document doc = checkFieldsPresence(fields, flds) ? new Document(): null;
+        Document doc = new Document();
         String dbName = null;
         String id = null;
 
@@ -428,62 +428,6 @@ public class NGrams {
                                                                     Store.YES));
         }
         return doc;
-    }
-
-    /**
-     * If a record has all required fields then true else false
-     * @param fields fields specification
-     * @param param fields content
-     * @param indexing true ifi indexing, false if searching
-     * @return
-     */
-    private static boolean checkFieldsPresence(final Map<String,
-                                                 br.bireme.ngrams.Field> fields,
-                                       final String[] param) {
-        assert fields != null;
-        assert param != null;
-
-        boolean ok = true;
-        final Set<String> checked = new HashSet<>();
-
-        for (String name : fields.keySet()) {
-            ok = checkPresence(name, fields, param, checked);
-            if (!ok) {
-                break;
-            }
-        }
-        return ok;
-    }
-
-    private static boolean checkPresence(final String fieldName,
-                                         final Map<String, br.bireme.ngrams.Field> fields,
-                                         final String[] param,
-                                         final Set<String> checked) {
-        assert fieldName != null;
-        assert fields != null;
-        assert param != null;
-        assert checked != null;
-
-        final boolean ok;
-
-        if (checked.contains(fieldName)) {
-            ok = true;
-        } else {
-            final br.bireme.ngrams.Field field = fields.get(fieldName);
-            if (field == null) {
-                ok = false;
-            } else {
-                final int pos = field.pos;
-                final String requiredField = field.requiredField;
-
-                checked.add(fieldName);
-
-                ok = (param[pos].isEmpty()) ? (field.presence != Status.REQUIRED)
-                        : ((requiredField == null)||(requiredField.isEmpty())) ? true
-                        : checkPresence(requiredField, fields, param, checked);
-            }
-        }
-        return ok;
     }
 
     /**
@@ -572,12 +516,10 @@ public class NGrams {
                     if (split.length != parameters.nameFields.size()) {
                         throw new IOException("invalid number of fields: " + line);
                     }
-                    if (checkFieldsPresence(parameters.nameFields,split)) {
-                        searchRaw(parameters, searcher, analyzer, ngDistance,
+                    searchRaw(parameters, searcher, analyzer, ngDistance,
                                                     tline, true, id_id, results);
-                        if (!results.isEmpty()) {
-                            writeOutput(parameters, results, writer);
-                        }
+                    if (!results.isEmpty()) {
+                        writeOutput(parameters, results, writer);
                     }
                 }
             }
@@ -613,10 +555,9 @@ public class NGrams {
             throw new IOException("invalid number of fields: " + text);
         }
 
-        if (checkFieldsPresence(parameters.nameFields,split)) {
-            searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
+        searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
                                                                 id_id, results);
-        }
+
         searcher.getIndexReader().close();
 
         return original ? results2pipeFull(parameters, results)
@@ -652,10 +593,9 @@ public class NGrams {
             throw new IOException("invalid number of fields: " + text);
         }
 
-        if (checkFieldsPresence(parameters.nameFields,split)) {
-            searchRaw(parameters, searcher, analyzer, ngDistance, ttext, false,
+        searchRaw(parameters, searcher, analyzer, ngDistance, ttext, false,
                                                                 id_id, results);
-        }
+
         searcher.getIndexReader().close();
 
         return original ? results2pipeFull(parameters, results)
@@ -705,10 +645,13 @@ public class NGrams {
         assert searcher != null;
         assert analyzer != null;
         assert ngDistance != null;
-        assert text != null;
         assert id_id != null;
         assert results != null;
 
+        if (text == null) {
+            throw new NullPointerException("text");
+        }
+        
         final String text2 = StringEscapeUtils.unescapeHtml4(text);
         final String[] param = text2.trim().split(" *\\| *", Integer.MAX_VALUE);
         if (param.length != parameters.nameFields.size()) {
@@ -734,6 +677,10 @@ public class NGrams {
                 }
                 final Document doc = searcher.doc(sdoc.doc);
                 if (useSimilarity) {
+                    final String dname = doc.get(fname);
+                    if (dname == null) {
+                        throw new IOException("dname");
+                    }        
                     final float similarity = ngDistance.getDistance(ntext,
                                                                 doc.get(fname));
                     if (similarity < lower) {
@@ -789,8 +736,7 @@ public class NGrams {
             final int val = checkField(ngDistance, fld, param,
                                                     parameters.nameFields, doc);
             if (val == -1) {
-                matchedFields = -1;
-                break; // skip this document because it does not follow requests
+                // field does not match
             } else if (val == -2) {
                 maxScore = true;
             } else {
@@ -806,8 +752,8 @@ public class NGrams {
         final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2)
                                                           : (idb2 + "_" + idb1);
 
-        if (matchedFields <= 0) {
-            ret = null; // document is reject (one of its fields does not follow schema)
+        if (matchedFields == 0) {
+            ret = null; // document is reject (no field passed the check)
         } else {
             if (checkScore(parameters, param, similarity, matchedFields,
                                                                     maxScore)) {
@@ -863,7 +809,7 @@ public class NGrams {
             final String stext = param[parameters.indexed.pos].trim()
                                                              .replace('|', '!');
             final String id1 = param[parameters.id.pos];
-            final String id2 = (String)doc.get("id");
+            final String id2 = (String)doc.get("id~notnormalized");
             final String src1 = param[parameters.db.pos];
             final String src2 = (String)doc.get("database");
             final String str = result.score + "|" + result.similarity + "|" +
@@ -986,7 +932,6 @@ public class NGrams {
      * @param doc
      * @return -2 : fields dont match and contentMatch is MAX_SCORE
      *         -1 : fields dont match and contentMatch is required
-     *          0 : fields dont match and contentMatch is optional
      *          1 : fields match
      */
     private static int checkField(final NGramDistance ngDistance,
@@ -1003,18 +948,7 @@ public class NGrams {
         final int ret;
 
         final String fld = param[field.pos];
-        final String requiredField = field.requiredField;
-        int rfldPos = -1;  // required field pos;
-
-        if (requiredField != null) {
-            final br.bireme.ngrams.Field afld = fields.get(requiredField);
-            if (afld != null) {
-                rfldPos = afld.pos;
-            }
-        }
-        if ((rfldPos != -1) && (param[rfldPos].isEmpty())) {
-            ret = -1;
-        } else if (field instanceof IndexedNGramField) {
+        if (field instanceof IndexedNGramField) {
             final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
             ret = compareIndexedNGramFields(ngDistance, field, nfld, doc);
@@ -1031,12 +965,6 @@ public class NGrams {
                                                        MAX_NG_TEXT_SIZE).trim();
             final String idxText = (String)doc.get(field.name);
             ret = compareFields(field, nfld, idxText);
-        } else if (field instanceof DatabaseField) {
-            //final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
-            //                                           MAX_NG_TEXT_SIZE).trim();
-            //final String idxText = (String)doc.get(field.name);
-            //ret = (nfld.compareTo(idxText) == 0) ? 0 : -1;
-            ret = 0; // database name should not be considered when checking duplicated
         } else {
             ret = 0;
         }
@@ -1050,22 +978,13 @@ public class NGrams {
                                                  final Document doc) {
         assert ngDistance != null;
         assert field != null;
-        assert fld != null;
         assert doc != null;
-
-        final int ret;
+       
         final String text = (String)doc.get(field.name);
-        assert text != null;
-
-        if (fld.isEmpty()) {
-            ret = -1;
-        } else if (fld.equals(text)) {
-            ret = 1;
-        } else {
-            final float similarity = ngDistance.getDistance(fld, text);
-            ret = (similarity >= ((IndexedNGramField)field).minScore) ? 1 : -1;
-        }
-        return ret;
+        final String xfld = (fld == null) ? "" : fld.trim();
+        final String xtext = (text == null) ? "" : text.trim();
+        
+        return (xfld.isEmpty() && xtext.isEmpty()) ? -1 : 0;
     }
 
     private static int compareNGramFields(final NGramDistance ngDistance,
@@ -1074,42 +993,26 @@ public class NGrams {
                                           final Document doc) {
         assert ngDistance != null;
         assert field != null;
-        assert fld != null;
         assert doc != null;
 
         final int ret;
-        final String idxText = (String)doc.get(field.name);
-        assert idxText != null;
-
-        if (fld.isEmpty()) {
-            if (field.presence == Status.REQUIRED) {
-                ret = -1;
-            } else if (field.presence == Status.MAX_SCORE) {
-                ret = -2;
-            } else if (fld.equals(idxText)) {
-                ret = 1;
-            } else if (field.contentMatch == Status.REQUIRED) {
-                ret = -1;
-            } else if (field.contentMatch == Status.MAX_SCORE) {
-                ret = -2;
-            } else {   // Status.OPTIONAL
-                ret = 0;
-            }
-        } else if (fld.equals(idxText)) {
-            ret = 1;
+        final String text = (String)doc.get(field.name);
+        final String xfld = (fld == null) ? "" : fld.trim();
+        final String xtext = (text == null) ? "" : text.trim();
+        
+        if (xfld.isEmpty() && xtext.isEmpty()) {
+            ret = -1;
         } else {
-            final float similarity = ngDistance.getDistance(fld, idxText);
+            final float similarity = ngDistance.getDistance(xfld, xtext);
             if (similarity >= ((NGramField)field).minScore) {
                 ret = 1;
-            } else if (field.contentMatch == Status.REQUIRED) {
-                ret = -1;
             } else if (field.contentMatch == Status.MAX_SCORE) {
                 ret = -2;
-            } else {   // Status.OPTIONAL
-                ret = 0;
+            } else {
+                ret = -1;
             }
         }
-
+        
         return ret;
     }
 
@@ -1117,36 +1020,42 @@ public class NGrams {
                                            final String fld,
                                            final Document doc) {
         assert field != null;
-        assert fld != null;
         assert doc != null;
 
-        final String idxText = (String)doc.get(field.name);
-        assert idxText != null;
-        final RegExpField regExp = (RegExpField)field;
-        final Matcher mat = regExp.matcher;
         final int ret;
-
-        mat.reset(idxText);
-        if (mat.find()) {
-            final String content1 = mat.group(regExp.groupNum);
-            if (content1 == null) {
-                ret = compareFields(field, fld, idxText);
-            } else {
-                mat.reset(fld);
-                if (mat.find()) {
-                    final String content2 = mat.group(regExp.groupNum);
-                    if (content2 == null) {
-                        ret = compareFields(field, fld, idxText);
-                    } else {
-                        ret = compareFields(field, content1, content2);
-                    }
-                } else {
-                    ret = compareFields(field, fld, idxText);
-                }
-            }
+        final String text = (String)doc.get(field.name);
+        final String xfld = (fld == null) ? "" : fld.trim();
+        final String xtext = (text == null) ? "" : text.trim();
+        
+        if (xfld.isEmpty() && xtext.isEmpty()) {
+            ret = -1;
         } else {
-            ret = compareFields(field, fld, idxText);
+            final RegExpField regExp = (RegExpField)field;
+            final Matcher mat = regExp.matcher;
+        
+            mat.reset(xtext);
+            if (mat.find()) {
+                final String content1 = mat.group(regExp.groupNum);
+                if (content1 == null) {
+                    ret = compareFields(field, xfld, xtext);
+                } else {
+                    mat.reset(xfld);
+                    if (mat.find()) {
+                        final String content2 = mat.group(regExp.groupNum);
+                        if (content2 == null) {
+                            ret = compareFields(field, xfld, xtext);
+                        } else {
+                            ret = compareFields(field, content1, content2);
+                        }
+                    } else {
+                        ret = compareFields(field, xfld, xtext);
+                    }
+                }
+            } else {
+                ret = compareFields(field, xfld, xtext);
+            }
         }
+                
         return ret;
     }
 
@@ -1154,44 +1063,28 @@ public class NGrams {
      *
      * @param field - configuration of the document
      * @param fld - text used to search
-     * @param idxText - txt from index
+     * @param text - txt from index
      * @return -2 : fields dont match and contentMatch is MAX_SCORE
      *         -1 : fields dont match and contentMatch is required
-     *          0 : fields dont match and contentMatch is optional
      *          1 : fields match
      */
     private static int compareFields(final br.bireme.ngrams.Field field,
                                      final String fld,
-                                     final String idxText) {
+                                     final String text) {
         assert field != null;
-        assert fld != null;
-        assert idxText != null;
 
         final int ret;
-
-        if (fld.isEmpty()) {
-            if (field.presence == Status.REQUIRED) {
-                ret = -1;
-            } else if (field.presence == Status.MAX_SCORE) {
-                ret = -2;
-            } else if (fld.equals(idxText)) {
-                ret = 1;
-            } else if (field.contentMatch == Status.REQUIRED) {
-                ret = -1;
-            } else if (field.contentMatch == Status.MAX_SCORE) {
-                ret = -2;
-            } else {   // Status.OPTIONAL
-                ret = 0;
-            }
-         } else if (fld.equals(idxText)) {
+        final String xfld = (fld == null) ? "" : fld.trim();
+        final String xtext = (text == null) ? "" : text.trim();
+        
+        if (xfld.equals(xtext) && (!xfld.isEmpty())) {
             ret = 1;
-         } else if (field.contentMatch == Status.REQUIRED) {
+        } else if (field.contentMatch == Status.MAX_SCORE) {
+            ret = -2;        
+        } else {
             ret = -1;
-         } else if (field.contentMatch == Status.MAX_SCORE) {
-            ret = -2;
-         } else {   // Status.OPTIONAL
-            ret = 0;
-         }
+        }
+        
         return ret;
     }
 

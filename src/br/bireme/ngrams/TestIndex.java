@@ -78,18 +78,10 @@ public class TestIndex {
         boolean ret = false;
         
         for (Field field : fields.values()) {
-            ret = !checkContentPresence(doc, field) ||
-                  !checkRequiredField(doc, field);
+            ret = !checkRequiredField(doc, field);
             if (ret) break;
         }
         return ret;
-    }
-
-    private static boolean checkContentPresence(final Document doc,
-                                                final Field field) {
-        return ((doc.get(field.name) != null) &&
-            (doc.get(field.name + "~notnormalized") != null)) ||
-            (field.presence != Field.Status.REQUIRED);
     }
 
     private static boolean checkRequiredField(final Document doc,
