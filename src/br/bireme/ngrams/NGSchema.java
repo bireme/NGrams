@@ -1,23 +1,10 @@
 /*=========================================================================
 
-    Copyright © 2015 BIREME/PAHO/WHO
+    NGrams © Pan American Health Organization, 2018.
+    See License at: https://github.com/bireme/NGrams/blob/master/LICENSE.txt
 
-    This file is part of NGrams.
+  ==========================================================================*/
 
-    NGrams is free software: you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public License as
-    published by the Free Software Foundation, either version 2.1 of
-    the License, or (at your option) any later version.
-
-    NGrams is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with NGrams. If not, see <http://www.gnu.org/licenses/>.
-
-=========================================================================*/
 package br.bireme.ngrams;
 
 import java.io.BufferedReader;
@@ -70,7 +57,7 @@ public class NGSchema {
             namesPos.put(field.name, field.pos);
         }
     }
-    
+
     public NGSchema(final String name,
                     final String content) throws IOException,
                                                  ParserConfigurationException,
@@ -117,7 +104,7 @@ public class NGSchema {
 
         for (Field fld: flds) map.put(fld.pos, fld);
         final Collection<Field> fields = map.values();
-        
+
         builder.append("{");
         builder.append("\"name\":\"");
         builder.append(name);
@@ -135,7 +122,7 @@ public class NGSchema {
             builder.append(fld.pos);
             builder.append(",\"name\":\"");
             builder.append(fld.name);
-            
+
             builder.append("\",\"type\":\"");
             if (fld instanceof IdField) {
                 builder.append("idField");
@@ -156,13 +143,13 @@ public class NGSchema {
             builder.append(fld.requiredField);
             builder.append("\",\"contentMatch\":\"");
             builder.append(fld.contentMatch.name().toLowerCase());
-            builder.append("\"}");            
+            builder.append("\"}");
         }
         builder.append("]}");
 
         return builder.toString();
     }
-    
+
     public String getSchemaXml() {
         String ret = "<config>";
 
@@ -174,7 +161,7 @@ public class NGSchema {
         ret += "\n\t<idField pos=\"" + parameters.id.pos + "\"/>";
         ret += "\n\t<idxNGramField pos=\"" + parameters.indexed.pos + "\" name=\"" +
                 parameters.indexed.name + "\"/>";
-        
+
         for (ExactField field: parameters.exacts) {
             ret += "\n\t<exactField pos=\"" + field.pos + "\" name=\"" +
                    field.name + "\" requiredField=\"" + field.requiredField +
@@ -182,13 +169,13 @@ public class NGSchema {
         }
         for (NGramField field: parameters.ngrams) {
             ret += "\n\t<nGramField pos=\"" + field.pos + "\" name=\"" +
-                   field.name + "\" minScore=\"" + field.minScore + 
+                   field.name + "\" minScore=\"" + field.minScore +
                    "\" match=\"" + field.contentMatch.name() + "\"/>";
         }
         for (RegExpField field: parameters.regexps) {
             ret += "\n\t<regExpField pos=\"" + field.pos + "\" name=\"" +
                    field.name + "\" requiredField=\"" + field.requiredField +
-                   "\" match=\"" + 
+                   "\" match=\"" +
                    field.contentMatch.name() + "\" pattern=\"" + field.matcher.
                    pattern().pattern() + "\" groupNum=\"" + field.groupNum + "\"/>";
         }
@@ -197,12 +184,12 @@ public class NGSchema {
                    field.name + "\"/>";
         }
         ret += "\n</config>";
-        
+
         return ret;
     }
 
     public String getIndexedFldName() {
-        
+
         return parameters.indexed.name;
     }
 

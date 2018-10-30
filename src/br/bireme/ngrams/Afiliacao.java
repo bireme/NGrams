@@ -1,8 +1,10 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+/*=========================================================================
+
+    NGrams © Pan American Health Organization, 2018.
+    See License at: https://github.com/bireme/NGrams/blob/master/LICENSE.txt
+
+  ==========================================================================*/
+
 package br.bireme.ngrams;
 
 import static br.bireme.ngrams.NGrams.OCC_SEPARATOR;
@@ -35,9 +37,9 @@ public class Afiliacao {
                 } else {
                     final String[] split = line.split(" *\\| *");
                     if (lastLine != null) {
-                        final String str1 = 
+                        final String str1 =
                                 limitSize(normalize(lastLine, OCC_SEPARATOR), 100);
-                        final String str2 = 
+                        final String str2 =
                                 limitSize(normalize(split[0], OCC_SEPARATOR), 100);
                         final float dist = NGDistance(str1, str2);
                         if (dist >= 0.35) {

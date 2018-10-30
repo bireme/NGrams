@@ -1,23 +1,9 @@
 /*=========================================================================
 
-    Copyright © 2015 BIREME/PAHO/WHO
+    NGrams © Pan American Health Organization, 2018.
+    See License at: https://github.com/bireme/NGrams/blob/master/LICENSE.txt
 
-    This file is part of NGrams.
-
-    NGrams is free software: you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public License as
-    published by the Free Software Foundation, either version 2.1 of
-    the License, or (at your option) any later version.
-
-    NGrams is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with NGrams. If not, see <http://www.gnu.org/licenses/>.
-
-=========================================================================*/
+  ==========================================================================*/
 
 package br.bireme.ngrams;
 
@@ -72,7 +58,7 @@ public class Tools {
                 final TermsEnum tenum = terms.iterator();
                 int pos = 0;
                 // PostingsEnum penum = null;
-                
+
                 while (true) {
                     final BytesRef br = tenum.next();
                     if (br == null) {
@@ -190,7 +176,7 @@ public class Tools {
     }
 
     /**
-     * 
+     *
      * @param in input String
      * @param occSeparator string separating each occurrence
      * @return the input string with the occurences ordered
@@ -199,16 +185,16 @@ public class Tools {
                                   final String occSeparator) {
         if (in == null) return null;
         if (occSeparator == null) return in;
-        
+
         final String[] split = in.split(occSeparator);
         String out = "";
-        
+
         if (split.length == 1) {
             out = in;
         } else {
             final TreeSet<String> set = new TreeSet<>();
             boolean first = true;
-            
+
             for (String occ1: split) {
                 set.add(occ1.trim());
             }
@@ -223,7 +209,7 @@ public class Tools {
         }
         return out;
     }
-    
+
     /**
      *
      * @param in input String
@@ -264,18 +250,18 @@ public class Tools {
         }
         return ret;
     }
-    
-    public static int countOccurrences(final String in, 
-                                       final char needle) {        
+
+    public static int countOccurrences(final String in,
+                                       final char needle) {
         int count = 0;
-        
+
         if (in != null) {
             for (int i=0; i < in.length(); i++) {
                 if (in.charAt(i) == needle) {
                     count++;
                 }
             }
-        }    
+        }
         return count;
     }
 
@@ -283,21 +269,21 @@ public class Tools {
                                    final String str2) {
         return new NGramDistance(3).getDistance(str1, str2);
     }
-    
+
    /* public static Map<String, Object> json2Map(final String json) {
         final String j1 = json.replaceAll("\\{ *'", "{\"");
         final String j2 = j1.replaceAll("\\: *'", ":\"");
         final String j3 = j2.replaceAll("\\[ *'", "[\"");
         final String j4 = j3.replaceAll("\\, *'", ",\"");
-        
+
         final String j5 = j4.replaceAll("' *\\:", "\":");
         final String j6 = j5.replaceAll("' *\\,", "\",");
-        final String j7 = j6.replaceAll("' *\\]", "\"]"); 
-        final String j8 = j7.replaceAll("' *\\}", "\"}");                                        
-        
+        final String j7 = j6.replaceAll("' *\\]", "\"]");
+        final String j8 = j7.replaceAll("' *\\}", "\"}");
+
         final ObjectMapper mapperObj = new ObjectMapper();
         Map<String, Object> ret;
-                 
+
         try {
             ret = mapperObj.readValue(j8,
                             new TypeReference<Map<String,String>>(){});
@@ -325,7 +311,7 @@ public class Tools {
         System.out.println("dist=" + NGDistance(str1, str2) + "|" + str1 + "|" +
                                                                           str2);
         */
-        
+
        /* final String json = "{'nome':'Heitor', 'parentes':['Karim','Flavio', 'Marilene']}";
         //final String json = "{\"nome\":\"Heitor\", \"sobrenome\":\"Barbieri\"}";
         final Map<String, Object> map = json2Map(json);

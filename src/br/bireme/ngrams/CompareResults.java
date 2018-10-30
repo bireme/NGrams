@@ -1,23 +1,9 @@
 /*=========================================================================
 
-    Copyright © 2015 BIREME/PAHO/WHO
+    NGrams © Pan American Health Organization, 2018.
+    See License at: https://github.com/bireme/NGrams/blob/master/LICENSE.txt
 
-    This file is part of NGrams.
-
-    NGrams is free software: you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public License as
-    published by the Free Software Foundation, either version 2.1 of
-    the License, or (at your option) any later version.
-
-    NGrams is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with NGrams. If not, see <http://www.gnu.org/licenses/>.
-
-=========================================================================*/
+  ==========================================================================*/
 
 package br.bireme.ngrams;
 
@@ -51,36 +37,36 @@ public class CompareResults {
                            "<outputFile> [<encoding>]");
         System.exit(1);
     }
-    
+
     public static void main(final String[] args) throws IOException {
         if (args.length < 3) usage();
-        
+
         final String encoding = args.length > 3 ? args[3] : "utf-8";
-        
+
         compare(args[0], args[1], args[2], encoding);
     }
-    
+
     private static void compare(final String resultFile,
                                 final String indexPath,
-                                final String outputFile,                                
+                                final String outputFile,
                                 final String encoding) throws IOException {
         assert resultFile != null;
         assert indexPath != null;
-        assert outputFile != null;        
+        assert outputFile != null;
         assert encoding != null;
-        
+
         try (DirectoryReader ireader = DirectoryReader.open(
                 new MMapDirectory(new File(indexPath).toPath()))) {
             final IndexSearcher isearcher = new IndexSearcher(ireader);
-            
+
             try (BufferedReader breader = Files.newBufferedReader(
                                                  new File(resultFile).toPath(),
-                                                 Charset.forName(encoding)); 
+                                                 Charset.forName(encoding));
                  BufferedWriter bwriter = Files.newBufferedWriter(
                                                  new File(outputFile).toPath(),
-                                                 Charset.forName(encoding))) {                
+                                                 Charset.forName(encoding))) {
                 boolean first = true;  // first line
-                
+
                 while (true) {
                     final String line = breader.readLine();
                     if (line == null) break;
@@ -90,7 +76,7 @@ public class CompareResults {
                         final String line2 = line.trim();
                         if (!line2.isEmpty()) {
                             final String[] split = line2.split("\\|");
-                            checkDocs(split[1], split[2], split[3], isearcher, 
+                            checkDocs(split[1], split[2], split[3], isearcher,
                                                                        bwriter);
                         }
                     }
@@ -98,66 +84,66 @@ public class CompareResults {
             }
         }
     }
-    
+
     private static void checkDocs(final String similarity,
                                   final String docId1,
                                   final String docId2,
                                   final IndexSearcher isearcher,
-                                  final BufferedWriter bwriter) 
+                                  final BufferedWriter bwriter)
                                                             throws IOException {
         assert similarity != null;
         assert docId1 != null;
         assert docId2 != null;
         assert isearcher != null;
         assert bwriter != null;
-        
+
         final Query query1 = new TermQuery(new Term("id", docId1));
         final Query query2 = new TermQuery(new Term("id", docId2));
         final TopDocs top1 = isearcher.search(query1, 1);
         final TopDocs top2 = isearcher.search(query2, 1);
         final ScoreDoc[] scores1 = top1.scoreDocs;
         final ScoreDoc[] scores2 = top2.scoreDocs;
-        
+
         if ((scores1.length > 0) && (scores2.length > 0)) {
             final Document doc1 = isearcher.doc(scores1[0].doc);
             final Document doc2 = isearcher.doc(scores2[0].doc);
-            
+
             writeDocDifferences(similarity, doc1, doc2, bwriter);
         }
     }
-    
+
     private static void writeDocDifferences(final String similarity,
                                             final Document doc1,
                                             final Document doc2,
-                                            final BufferedWriter bwriter) 
+                                            final BufferedWriter bwriter)
                                                             throws IOException {
         assert similarity != null;
         assert doc1 != null;
         assert doc2 != null;
         assert bwriter != null;
-        
+
         final StringBuilder builder = new StringBuilder();
         final Set<String> diff = new HashSet<>();
         final String id1 = doc1.get("id");
         final String id2 = doc2.get("id");
-        
+
         for (IndexableField fld : doc1.getFields()) {
             final String name = fld.name();
-            
+
             if (name.endsWith("~notnormalized")) {
-                if (!name.startsWith("id~")) {                
+                if (!name.startsWith("id~")) {
                     final String value1 = fld.stringValue();
                     final String value2 = doc2.get(name);
-                    if (((value1 == null) && (null != value2)) || 
+                    if (((value1 == null) && (null != value2)) ||
                                                        !value1.equals(value2)) {
                         final String name2 = name.substring(0,
                                                          name.lastIndexOf('~'));
-                        diff.add("[" + name2 + "]|" + value1 + "|" + value2);                    
+                        diff.add("[" + name2 + "]|" + value1 + "|" + value2);
                     }
                 }
             }
-        }       
-        if (diff.isEmpty()) {            
+        }
+        if (diff.isEmpty()) {
             builder.append("<identical>|");
             builder.append(id1 + "|" + id2 + "\n");
         } else {
@@ -170,7 +156,7 @@ public class CompareResults {
             for (String di: diff) {
                 builder.append(di);
                 builder.append("\n");
-            }            
+            }
         }
         builder.append("\n");
         bwriter.append(builder.toString());

@@ -1,23 +1,10 @@
 /*=========================================================================
 
-    Copyright © 2015 BIREME/PAHO/WHO
+    NGrams © Pan American Health Organization, 2018.
+    See License at: https://github.com/bireme/NGrams/blob/master/LICENSE.txt
 
-    This file is part of NGrams.
+  ==========================================================================*/
 
-    NGrams is free software: you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public License as
-    published by the Free Software Foundation, either version 2.1 of
-    the License, or (at your option) any later version.
-
-    NGrams is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with NGrams. If not, see <http://www.gnu.org/licenses/>.
-
-=========================================================================*/
 package br.bireme.ngrams;
 
 import java.io.IOException;
@@ -35,15 +22,15 @@ public class NGTokenizer extends Tokenizer {
     private final int ngramSize;
     private final CharTermAttribute termAtt;
     private final char[] buffer;
-        
+
     public NGTokenizer(int ngramSize) {
         super();
         if (ngramSize < 1) {
             throw new IllegalArgumentException("ngramSize < 1");
         }
-        this.ngramSize = ngramSize;        
+        this.ngramSize = ngramSize;
         termAtt = addAttribute(CharTermAttribute.class);
-        termAtt.resizeBuffer(ngramSize);        
+        termAtt.resizeBuffer(ngramSize);
         buffer = new char[ngramSize];
         for (int idx = 0; idx < ngramSize; idx++) {
             buffer[idx] = ' ';
@@ -53,25 +40,25 @@ public class NGTokenizer extends Tokenizer {
     public int getNgramSize() {
         return ngramSize;
     }
-    
+
     @Override
     public final boolean incrementToken() throws IOException {
         clearAttributes();
-        
+
         return getNextToken();
     }
-    
+
     private boolean getNextToken() throws IOException {
         termAtt.setEmpty();
         return getNextToken(0);
     }
-    
-    
+
+
     private boolean getNextToken(final int pos) throws IOException {
         assert pos >= 0;
-        
+
         final boolean ret;
-        
+
         if (pos == ngramSize) {
             ret = true;
         } else {
@@ -89,10 +76,10 @@ public class NGTokenizer extends Tokenizer {
                 }
             }
         }
-        
+
         return ret;
     }
-    
+
     /*
     private boolean getNextToken() throws IOException {
         termAtt.setEmpty();
@@ -101,9 +88,9 @@ public class NGTokenizer extends Tokenizer {
     private boolean getNextToken(final int pos,
                                  final boolean hasNotSpace) throws IOException {
         assert pos >= 0;
-        
+
         final boolean ret;
-        
+
         if (pos == ngramSize) {
             ret = hasNotSpace ? true : incrementToken();
         } else {
@@ -117,7 +104,7 @@ public class NGTokenizer extends Tokenizer {
                 ret = getNextToken(pos + 1, hasNotSpace || (ch != ' '));
             }
         }
-        
+
         return ret;
     }
     */

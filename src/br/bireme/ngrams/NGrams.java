@@ -1,23 +1,9 @@
 /*=========================================================================
 
-    Copyright © 2015 BIREME/PAHO/WHO
+    NGrams © Pan American Health Organization, 2018.
+    See License at: https://github.com/bireme/NGrams/blob/master/LICENSE.txt
 
-    This file is part of NGrams.
-
-    NGrams is free software: you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public License as
-    published by the Free Software Foundation, either version 2.1 of
-    the License, or (at your option) any later version.
-
-    NGrams is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with NGrams. If not, see <http://www.gnu.org/licenses/>.
-
-=========================================================================*/
+  ==========================================================================*/
 
 package br.bireme.ngrams;
 
@@ -296,7 +282,7 @@ public class NGrams {
                     }
                 }
             }
-            //writer.forceMerge(1); // optimize index                        
+            //writer.forceMerge(1); // optimize index
         }
     }
 
@@ -434,7 +420,7 @@ public class NGrams {
      * Checks is the string encoding is utf-8.
      * @param charset character code set
      * @param text input text to check the encoding
-     * @return 
+     * @return
      */
     private static boolean isUtf8Encoding(final String text) {
         assert text != null;
@@ -651,7 +637,7 @@ public class NGrams {
         if (text == null) {
             throw new NullPointerException("text");
         }
-        
+
         final String text2 = StringEscapeUtils.unescapeHtml4(text);
         final String[] param = text2.trim().split(" *\\| *", Integer.MAX_VALUE);
         if (param.length != parameters.nameFields.size()) {
@@ -680,7 +666,7 @@ public class NGrams {
                     final String dname = doc.get(fname);
                     if (dname == null) {
                         throw new IOException("dname");
-                    }        
+                    }
                     final float similarity = ngDistance.getDistance(ntext,
                                                                 doc.get(fname));
                     if (similarity < lower) {
@@ -979,11 +965,11 @@ public class NGrams {
         assert ngDistance != null;
         assert field != null;
         assert doc != null;
-       
+
         final String text = (String)doc.get(field.name);
         final String xfld = (fld == null) ? "" : fld.trim();
         final String xtext = (text == null) ? "" : text.trim();
-        
+
         return (xfld.isEmpty() && xtext.isEmpty()) ? -1 : 0;
     }
 
@@ -999,7 +985,7 @@ public class NGrams {
         final String text = (String)doc.get(field.name);
         final String xfld = (fld == null) ? "" : fld.trim();
         final String xtext = (text == null) ? "" : text.trim();
-        
+
         if (xfld.isEmpty() && xtext.isEmpty()) {
             ret = -1;
         } else {
@@ -1012,7 +998,7 @@ public class NGrams {
                 ret = -1;
             }
         }
-        
+
         return ret;
     }
 
@@ -1026,13 +1012,13 @@ public class NGrams {
         final String text = (String)doc.get(field.name);
         final String xfld = (fld == null) ? "" : fld.trim();
         final String xtext = (text == null) ? "" : text.trim();
-        
+
         if (xfld.isEmpty() && xtext.isEmpty()) {
             ret = -1;
         } else {
             final RegExpField regExp = (RegExpField)field;
             final Matcher mat = regExp.matcher;
-        
+
             mat.reset(xtext);
             if (mat.find()) {
                 final String content1 = mat.group(regExp.groupNum);
@@ -1055,7 +1041,7 @@ public class NGrams {
                 ret = compareFields(field, xfld, xtext);
             }
         }
-                
+
         return ret;
     }
 
@@ -1076,15 +1062,15 @@ public class NGrams {
         final int ret;
         final String xfld = (fld == null) ? "" : fld.trim();
         final String xtext = (text == null) ? "" : text.trim();
-        
+
         if (xfld.equals(xtext) && (!xfld.isEmpty())) {
             ret = 1;
         } else if (field.contentMatch == Status.MAX_SCORE) {
-            ret = -2;        
+            ret = -2;
         } else {
             ret = -1;
         }
-        
+
         return ret;
     }
 
