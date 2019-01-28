@@ -10,7 +10,6 @@ package br.bireme.ngrams;
 import br.bireme.ngrams.Field.Status;
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
@@ -139,7 +138,7 @@ class ParameterParser {
         final Node nNode = nIdxNGramList.item(0);
 
         if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-            throw new IOException("'IdxNGramField' is not an Element node");
+            throw new IOException("'idxNGramField' is not an Element node");
         }
         final Element eElement = (Element) nNode;
         final String name = eElement.getAttribute("name").trim();
@@ -165,7 +164,7 @@ class ParameterParser {
             final Node nNode = nNGramList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'NGramField' is not an Element node");
+                throw new IOException("'nGramField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
             final String name = eElement.getAttribute("name").trim();
@@ -214,7 +213,7 @@ class ParameterParser {
             final Node nNode = nRegExpList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'NGramField' is not an Element node");
+                throw new IOException("'regExpField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
             final String name = eElement.getAttribute("name").trim();
@@ -268,7 +267,7 @@ class ParameterParser {
             final Node nNode = nExactList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'field' is not an Element node");
+                throw new IOException("'exactField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
             final String name = eElement.getAttribute("name").trim();
@@ -311,7 +310,7 @@ class ParameterParser {
             final Node nNode = nCompList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'field' is not an Element node");
+                throw new IOException("'noCompField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
             final String name = eElement.getAttribute("name").trim();

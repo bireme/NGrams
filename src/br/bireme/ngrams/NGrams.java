@@ -38,11 +38,14 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.spell.NGramDistance;
 import org.apache.lucene.util.Bits;
@@ -143,84 +146,14 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                final String lineT = line.trim();
-                if (! lineT.isEmpty()) {
-                    indexDocument(index, writer, schema, line);
-                }
-                if (++cur % 100000 == 0) {
+                final boolean ret = indexDocument(index, writer, schema, line, false);
+                if (ret && (++cur % 100000 == 0)) {
                     System.out.println(">>> " + cur);
                 }
             }
             writer.forceMerge(1); // optimize index
             writer.close();
         }
-    }
-
-    public static boolean indexDocument(final NGIndex index,
-                                        final IndexWriter writer,
-                                        final NGSchema schema,
-                                        final String pipedDoc)
-                                                            throws IOException,
-                                                                ParseException {
-        if (index == null) {
-            throw new NullPointerException("index");
-        }
-        if (writer == null) {
-            throw new NullPointerException("writer");
-        }
-        if (schema == null) {
-            throw new NullPointerException("schema");
-        }
-        if (pipedDoc == null) {
-            throw new NullPointerException("pipedDoc");
-        }
-        if (!isUtf8Encoding(pipedDoc)) {
-            throw new IOException("Invalid encoded string");
-        }
-
-        final Parameters parameters = schema.getParameters();
-        if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos) {
-            throw new IOException("invalid number of fields: [" + pipedDoc + "]");
-        }
-        final String pipedDoc2 = StringEscapeUtils.unescapeHtml4(pipedDoc);
-        final String[] split = pipedDoc2.replace(':', ' ').trim()
-                                           .split(" *\\| *", Integer.MAX_VALUE);
-        final String id = split[parameters.id.pos];
-        if (id.isEmpty()) {
-            throw new IOException("id");
-        }
-        final String dbName = split[parameters.db.pos];
-        if (dbName.isEmpty()) {
-            throw new IOException("dbName");
-        }
-        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
-        final Document doc = createDocument(flds, split);
-
-        if (doc != null) {
-            /*final String id_ = Tools.limitSize(Tools.normalize(id, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            final String db_ = Tools.limitSize(Tools.normalize(dbName, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            final QueryParser parser = new QueryParser("", index.getAnalyzer());
-            final Query query = parser.parse(IdField.FNAME + ":\"" + id_ +
-                          "\" AND " + DatabaseField.FNAME + ":\"" + db_ + "\"");
-            final Query idQuery = new TermQuery(new Term(IdField.FNAME, id_));
-            final Query dbQuery = new TermQuery(new Term(DatabaseField.FNAME, db_));
-            final BooleanQuery.Builder builder = new BooleanQuery.Builder();
-            builder.add(idQuery,  BooleanClause.Occur.MUST);
-            builder.add(dbQuery,  BooleanClause.Occur.MUST);doc
-            writer.deleteDocuments(builder.build());*/
- //System.out.print("vou escrever");
- //try {
-            writer.addDocument(doc);
- //} catch(Exception ex) {
- //    String[] values = doc.getValues("id");
- //    System.out.println("id=" + values[0] + " msg=" + ex.getMessage());
- //}
- //System.out.println("  - OK");
-        }
-
-        return (doc != null);
     }
 
     public static void indexDocuments(final NGSchema schema,
@@ -236,53 +169,94 @@ public class NGrams {
         if (multiLinePipedDoc == null) {
             throw new NullPointerException("multiLinePipedDoc");
         }
-        if (!isUtf8Encoding(multiLinePipedDoc)) {
-            throw new IOException("Invalid encoded string");
-        }
-
-        final Parameters parameters = schema.getParameters();
-        final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
 
         try (IndexWriter writer = index.getIndexWriter(true)) {
-            final String[] mlPipedDoc = multiLinePipedDoc.trim().split(" *\n *");
+            final String[] pipedDoc = multiLinePipedDoc.trim().split(" *\n *");
 
-            for (String line: mlPipedDoc) {
-                if (!line.isEmpty()) {
-                    final String line2 = StringEscapeUtils.unescapeHtml4(line);
-                    final String[] split = line2.replace(':', ' ').trim()
-                            .split(" *\\| *", Integer.MAX_VALUE);
-                    if (split.length < parameters.maxIdxFieldPos) {
-                        throw new IOException("invalid number of fields: [" +
-                                                                    line + "]");
-                    }
-                    final String id = split[parameters.id.pos];
-                    if (id.isEmpty()) {
-                        throw new IOException("id");
-                    }
-                    final String dbName = split[parameters.db.pos];
-                    if (dbName.isEmpty()) {
-                        throw new IOException("dbName");
-                    }
-                    final Document doc = createDocument(flds, split);
-                    if (doc != null) {
-                        /*final String id_ = Tools.limitSize(
-                                              Tools.normalize(id, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-                        final String db_ =
-                            Tools.limitSize(Tools.normalize(dbName, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-                        final QueryParser parser = new QueryParser("",
-                                                           index.getAnalyzer());
-                        final Query query = parser.parse(IdField.FNAME + ":\"" +
-                            id_ + "\" AND " + DatabaseField.FNAME + ":\"" + db_
-                                                                        + "\"");
-
-                        writer.deleteDocuments(query);*/
-                        writer.addDocument(doc);
-                    }
-                }
+            for (String line: pipedDoc) {
+                indexDocument(index, writer, schema, line, false);
             }
-            //writer.forceMerge(1); // optimize index
+        }
+    }
+
+    public static boolean indexDocument(final NGIndex index,
+                                        final IndexWriter writer,
+                                        final NGSchema schema,
+                                        final String pipedDoc,
+                                        final boolean allowDocUpdate)
+                                            throws IOException, ParseException {
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        if (writer == null) {
+            throw new NullPointerException("writer");
+        }
+        if (schema == null) {
+            throw new NullPointerException("schema");
+        }
+        if (pipedDoc == null) {
+            throw new NullPointerException("pipedDoc");
+        }
+        boolean ret = false;
+        final String pipedDocT = pipedDoc.trim();
+        if (!isUtf8Encoding(pipedDocT)) {
+            throw new IOException("Invalid encoded string");
+        }
+        if (! pipedDocT.isEmpty()) {
+            final Parameters parameters = schema.getParameters();
+            if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos) {
+                throw new IOException("invalid number of fields: [" + pipedDoc + "]");
+            }
+            final String pipedDoc2 = StringEscapeUtils.unescapeHtml4(pipedDoc);
+            final String[] split = pipedDoc2.replace(':', ' ').trim()
+                                           .split(" *\\| *", Integer.MAX_VALUE);
+            final String id = split[parameters.id.pos];
+            if (id.isEmpty()) {
+                throw new IOException("id");
+            }
+            final String dbName = split[parameters.db.pos];
+            if (dbName.isEmpty()) {
+                throw new IOException("dbName");
+            }
+            final Map<String,br.bireme.ngrams.Field> flds = parameters.nameFields;
+            final Document doc = createDocument(flds, split);
+
+            if (doc != null) {
+                if (allowDocUpdate) {
+                    writer.updateDocument(new Term("id", id), doc);
+                } else {
+                    writer.addDocument(doc);
+                }
+                writer.commit();
+                ret = true;
+            }
+        }
+        return ret;
+    }
+
+    public static void deleteDocument(final String id,
+                                      final NGIndex index) throws IOException {
+        if (id == null) {
+            throw new NullPointerException("id");
+        }
+        if (index == null) {
+            throw new NullPointerException("index");
+        }
+        final String idN = Tools.limitSize(
+                             Tools.normalize(id, OCC_SEPARATOR),
+                                                       MAX_NG_TEXT_SIZE).trim();
+        
+        try (IndexWriter writer = index.getIndexWriter(true)) {
+            final Query query;
+            if (id.trim().endsWith("*")) { // delete all documents with same prefix
+                query = new PrefixQuery(
+                            new Term("id", idN.substring(0, idN.length() - 1)));
+            } else {
+                query = new TermQuery(new Term("id", idN));
+            }
+                        
+            writer.deleteDocuments(query);
+            writer.commit();
         }
     }
 
@@ -354,65 +328,64 @@ public class NGrams {
         String dbName = null;
         String id = null;
 
-        if (doc != null) {
-            final Set<String> names = new HashSet<>();
-            for (br.bireme.ngrams.Field fld : fields.values()) {
-                final String content = flds[fld.pos];
-                final String fname = fld.name;
-                if (fld instanceof IndexedNGramField) {
-                    if (names.contains(fname)) {
-                        doc = null;
-                        break;
-                    }
-                    final String ncontent = Tools.limitSize(
-                        Tools.normalize(content, OCC_SEPARATOR), MAX_NG_TEXT_SIZE)
-                                                                         .trim();
-                    doc.add(new TextField(fname, ncontent, Field.Store.YES));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
-                                                               content.trim()));
-                } else if (fld instanceof DatabaseField) {
-                    if (names.contains(fname)) {
-                        doc = null;
-                        break;
-                    }
-                    dbName = Tools.limitSize(
-                             Tools.normalize(content, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StringField(fname, dbName, Field.Store.YES));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
-                                                               content.trim()));
-                } else if (fld instanceof IdField) {
-                    if (names.contains(fname)) {
-                        doc = null;
-                        break;
-                    }
-                    id = Tools.limitSize(
-                             Tools.normalize(content, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StringField(fname, id, Field.Store.YES));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
-                                                               content.trim()));
-                } else {
-                    final String ncontent = Tools.limitSize(
-                             Tools.normalize(content, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-                    doc.add(new StoredField(fname, ncontent));
-                    doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
-                                                               content.trim()));
+        final Set<String> names = new HashSet<>();
+        for (br.bireme.ngrams.Field fld : fields.values()) {
+            final String content = flds[fld.pos];
+            final String fname = fld.name;
+            if (fld instanceof IndexedNGramField) {
+                if (names.contains(fname)) {
+                    doc = null;
+                    break;
                 }
-                names.add(fname);
+                final String ncontent = Tools.limitSize(
+                    Tools.normalize(content, OCC_SEPARATOR), MAX_NG_TEXT_SIZE)
+                                                                     .trim();
+                doc.add(new TextField(fname, ncontent, Field.Store.YES));
+                doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                           content.trim()));
+            } else if (fld instanceof DatabaseField) {
+                if (names.contains(fname)) {
+                    doc = null;
+                    break;
+                }
+                dbName = Tools.limitSize(
+                         Tools.normalize(content, OCC_SEPARATOR),
+                                                   MAX_NG_TEXT_SIZE).trim();
+                doc.add(new StringField(fname, dbName, Field.Store.YES));
+                doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                           content.trim()));
+            } else if (fld instanceof IdField) {
+                if (names.contains(fname)) {
+                    doc = null;
+                    break;
+                }
+                id = Tools.limitSize(
+                         Tools.normalize(content, OCC_SEPARATOR),
+                                                   MAX_NG_TEXT_SIZE).trim();
+                doc.add(new StringField(fname, id, Field.Store.YES));
+                doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                           content.trim()));
+            } else {
+                final String ncontent = Tools.limitSize(
+                         Tools.normalize(content, OCC_SEPARATOR),
+                                                   MAX_NG_TEXT_SIZE).trim();
+                doc.add(new StoredField(fname, ncontent));
+                doc.add(new StoredField(fname + NOT_NORMALIZED_FLD,
+                                                           content.trim()));
             }
-            // Add field to avoid duplicated documents in the index
-            if (dbName == null) {
-                throw new IOException("dbName");
-            }
-            if (id == null) {
-                throw new IOException("id");
-            }
-            doc.add(new StringField("db_id",
-                              Tools.normalize(dbName + "_" + id, OCC_SEPARATOR),
-                                                                    Store.YES));
+            names.add(fname);
         }
+        // Add field to avoid duplicated documents in the index
+        if (dbName == null) {
+            throw new IOException("dbName");
+        }
+        if (id == null) {
+            throw new IOException("id");
+        }
+        doc.add(new StringField("db_id",
+                          Tools.normalize(dbName + "_" + id, OCC_SEPARATOR),
+                                                                Store.YES));
+        
         return doc;
     }
 
