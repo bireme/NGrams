@@ -12,7 +12,7 @@ package br.bireme.ngrams;
  * @author Heitor Barbieri
  * date: 20150707
  */
-class Score implements Comparable {
+public class Score implements Comparable {
     /**
      * Minimum score value [0,1]
      */
@@ -33,6 +33,14 @@ class Score implements Comparable {
         }
         this.minValue = minValue;
         this.minFields = minFields;
+    }
+    
+    public float getMinValue() {
+        return minValue;
+    }
+    
+    public int getMinFields() {
+        return minFields;
     }
 
     @Override

@@ -37,7 +37,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.MultiBits;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -382,9 +382,11 @@ public class NGrams {
         if (id == null) {
             throw new IOException("id");
         }
-        doc.add(new StringField("db_id",
+        if (doc != null) {
+            doc.add(new StringField("db_id",
                           Tools.normalize(dbName + "_" + id, OCC_SEPARATOR),
                                                                 Store.YES));
+        }
         
         return doc;
     }
@@ -714,8 +716,7 @@ public class NGrams {
         if (matchedFields == 0) {
             ret = null; // document is reject (no field passed the check)
         } else {
-            if (checkScore(parameters, param, similarity, matchedFields,
-                                                                    maxScore)) {
+            if (checkScore(parameters, similarity, matchedFields, maxScore)) {
                 //ret = new NGrams.Result(param, doc, similarity, score);
                 if (id_id.contains(id1id2)) {
                     ret = null;
@@ -731,12 +732,10 @@ public class NGrams {
     }
 
     private static boolean checkScore(final Parameters parameters,
-                                      final String[] param,
                                       final float similarity,
                                       final int matchedFields,
-                                      final boolean maxScore) {
+                                     final boolean maxScore) {
         assert parameters != null;
-        assert param != null;
         assert similarity >= 0;
         assert matchedFields > 0;
 
@@ -885,19 +884,18 @@ public class NGrams {
      *
      * @param ngDistance
      * @param field
-     * @param fld
-     * @param pos
+     * @param param
      * @param fields
      * @param doc
      * @return -2 : fields dont match and contentMatch is MAX_SCORE
      *         -1 : fields dont match and contentMatch is required
      *          1 : fields match
      */
-    private static int checkField(final NGramDistance ngDistance,
-                                  final br.bireme.ngrams.Field field,
-                                  final String[] param,
-                                  final Map<String,br.bireme.ngrams.Field> fields,
-                                  final Document doc) {
+    public static int checkField(final NGramDistance ngDistance,
+                                 final br.bireme.ngrams.Field field,
+                                 final String[] param,
+                                 final Map<String,br.bireme.ngrams.Field> fields,
+                                 final Document doc) {
         assert ngDistance != null;
         assert field != null;
         assert param != null;
@@ -1088,7 +1086,8 @@ public class NGrams {
         final TreeMap<Integer,String> fields = new TreeMap<>();
         final IndexReader reader = index.getIndexSearcher().getIndexReader();
         final int maxdoc = reader.maxDoc();
-        final Bits liveDocs = MultiFields.getLiveDocs(reader);
+        //final Bits liveDocs = MultiFields.getLiveDocs(reader);
+        final Bits liveDocs = MultiBits.getLiveDocs(reader);
         final BufferedWriter writer = Files.newBufferedWriter(
                        Paths.get(outFile),
                        Charset.forName(outFileEncoding),

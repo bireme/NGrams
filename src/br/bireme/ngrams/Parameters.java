@@ -85,8 +85,24 @@ public class Parameters {
         checkFields(nfields);
     }
 
+    public TreeSet<Score> getScores() {
+        return scores;
+    }
+    
     public Map<String,Field> getNameFields() {
         return nameFields;
+    }
+    
+    public Map<Integer,Field> getSearchFields() {
+        return sfields;
+    }
+    
+    public float getMinSimilarity() {
+        return scores.first().minValue;
+    }
+    
+    public int getIndexedPos() {
+        return indexed.pos;
     }
 
     private int addField(final Field fld,
