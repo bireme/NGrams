@@ -176,6 +176,7 @@ public class NGrams {
             for (String line: pipedDoc) {
                 indexDocument(index, writer, schema, line, false);
             }
+            writer.close();
         }
     }
 
@@ -224,10 +225,10 @@ public class NGrams {
             if (doc != null) {
                 if (allowDocUpdate) {
                     writer.updateDocument(new Term("id", id), doc);
+                    writer.commit();
                 } else {
                     writer.addDocument(doc);
-                }
-                writer.commit();
+                }                
                 ret = true;
             }
         }

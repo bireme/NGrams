@@ -59,6 +59,8 @@ public class Parameters {
         // number of fields
         final int nfields = 3 + exacts.size() + ngrams.size() + regexps.size()
                                                              + nocompare.size();
+System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.size()
+                                                      + "+" + nocompare.size());
         int maxPos = 0;
 
         sfields = new TreeMap<>();
@@ -79,6 +81,9 @@ public class Parameters {
         }
         for (NoCompareField nocomp : nocompare) {
             maxPos = addField(nocomp, nfields, maxPos);
+        }
+        if (nfields == 3) {
+            throw new IllegalArgumentException("Empty check list of fields");
         }
         this.maxIdxFieldPos = maxPos;
 
@@ -112,9 +117,13 @@ public class Parameters {
         assert nfields > 0;
         assert maxPosition >= 0;
 
-        if ((fld.pos >= nfields) || (sfields.containsKey(fld.pos))) {
-            throw new IllegalArgumentException(fld.name + " spos["
-                         + fld.pos + "] it out of range or already used");
+        if (fld.pos >= nfields) {
+            throw new IllegalArgumentException(fld.name + " field pos["
+                         + fld.pos + "] >=" + nfields);
+        }
+        if (sfields.containsKey(fld.pos)) {
+            throw new IllegalArgumentException(fld.name + "  field pos["
+                         + fld.pos + "] is already used");
         }
         sfields.put(fld.pos, fld);
         nameFields.put(fld.name, fld);
