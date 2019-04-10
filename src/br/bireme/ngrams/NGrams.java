@@ -106,6 +106,10 @@ public class NGrams {
     */
     public static final String OCC_SEPARATOR = "//@//";
 
+    /*
+      Available charsets
+    */
+    private static final Charset utf8 = Charset.availableCharsets().get("UTF-8");
 
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final NGIndex index,
@@ -401,7 +405,7 @@ public class NGrams {
     private static boolean isUtf8Encoding(final String text) {
         assert text != null;
 
-        final Charset utf8 = Charset.availableCharsets().get("UTF-8");
+        //final Charset utf8 = Charset.availableCharsets().get("UTF-8");
         final byte[] b1 = text.getBytes(utf8) ;
         final byte[] b2 = new String(b1, utf8).getBytes(utf8);
 
@@ -1063,7 +1067,11 @@ public class NGrams {
             } else {
                 writer.newLine();
             }
-            writer.append(pipe);
+            try {
+                writer.append(pipe);
+            } catch(IOException ioe) {
+                System.err.println("Write error. String:" + pipe);
+            }
         }
     }
 

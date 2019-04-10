@@ -53,7 +53,6 @@ public class NGTokenizer extends Tokenizer {
         return getNextToken(0);
     }
 
-
     private boolean getNextToken(final int pos) throws IOException {
         assert pos >= 0;
 
