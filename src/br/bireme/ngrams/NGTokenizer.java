@@ -21,7 +21,7 @@ public class NGTokenizer extends Tokenizer {
 
     private final int ngramSize;
     private final CharTermAttribute termAtt;
-    private final char[] buffer;
+    private boolean doubleTok; // gener tokens two times.
 
     public NGTokenizer(int ngramSize) {
         super();
@@ -31,10 +31,7 @@ public class NGTokenizer extends Tokenizer {
         this.ngramSize = ngramSize;
         termAtt = addAttribute(CharTermAttribute.class);
         termAtt.resizeBuffer(ngramSize);
-        buffer = new char[ngramSize];
-        for (int idx = 0; idx < ngramSize; idx++) {
-            buffer[idx] = ' ';
-        }
+        doubleTok = input.markSupported();
     }
 
     public int getNgramSize() {
@@ -63,8 +60,15 @@ public class NGTokenizer extends Tokenizer {
         } else {
             final int ich = input.read();
             if (ich == -1) {
-                termAtt.setEmpty();
-                ret = false;
+                if (doubleTok) {
+                    doubleTok = false;
+                    input.reset();
+                    input.skip(ngramSize - 1);  // Replace the initial position of tokenization
+                    ret = getNextToken();
+                } else {
+                    termAtt.setEmpty();
+                    ret = false;
+                }
             } else {
                 final char ch = (char)ich;
                 if (ch == ' ') {
