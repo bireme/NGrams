@@ -145,14 +145,20 @@ public class CompareResults {
         }
         if (diff.isEmpty()) {
             builder.append("<identical>|");
-            builder.append(id1 + "|" + id2 + "\n");
+            builder.append(id1);
+            builder.append("|");
+            builder.append(id2);
+            builder.append("\n");
         } else {
             if (similarity.equals("1.0")) {
                 builder.append("<very similar>|");
             } else {
                 builder.append("<similar>|");
             }
-            builder.append(id1 + "|" + id2 + "\n");
+            builder.append(id1);
+            builder.append("|");
+            builder.append(id2);
+            builder.append("\n");
             for (String di: diff) {
                 builder.append(di);
                 builder.append("\n");
