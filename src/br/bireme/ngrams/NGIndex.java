@@ -28,6 +28,7 @@ public class NGIndex {
     private final String name;
     private final String indexPath;
     private final Analyzer analyzer;
+    private IndexWriter writer;
 
     public NGIndex(final String name,
                    final String indexPath,
@@ -50,14 +51,27 @@ public class NGIndex {
         this.name = name;
         this.indexPath = new File(indexPath).getCanonicalPath();
         this.analyzer = analyzer;
+        this.writer = getIndexWriter(indexPath, analyzer);        
+    }
+    
+    public void close() {
+        if (writer != null) {
+            try {
+                writer.close();
+                writer = null;
+            } catch(IOException ioe) {}
+        }
     }
 
     public String getName() {
         return name;
     }
 
-    public IndexWriter getIndexWriter(final boolean append) throws IOException {
-        return getIndexWriter(indexPath, analyzer, append);
+    public IndexWriter getIndexWriter() throws IOException {
+        if (writer == null) {
+            writer = getIndexWriter(indexPath, analyzer);
+        }
+        return writer;
     }
 
     public IndexSearcher getIndexSearcher() throws IOException {
@@ -69,22 +83,20 @@ public class NGIndex {
     }
 
     private IndexWriter getIndexWriter(final String indexPath,
-                                       final Analyzer analyzer,
-                                       final boolean append)
+                                       final Analyzer analyzer)
                                                             throws IOException {
         assert indexPath != null;
         assert analyzer != null;
 
+        new File(indexPath, "write.lock").delete();
+        
         final File dir = new File(indexPath);
         final Directory directory = FSDirectory.open(dir.toPath());
         final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);
+        
+        
 
-        if (append) {
-            cfg.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-        } else {
-            new File(dir, "write.lock").delete();
-            cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-        }
+        cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
 
         return new IndexWriter(directory, cfg);
     }

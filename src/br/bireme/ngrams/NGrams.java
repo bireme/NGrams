@@ -109,7 +109,7 @@ public class NGrams {
     /*
       Available charsets
     */
-    private static final Charset utf8 = Charset.availableCharsets().get("UTF-8");
+    private static final Charset UTF8 = Charset.availableCharsets().get("UTF-8");
 
     // <id>|<ngram index/search text>|<content>|...|<content>
     public static void index(final NGIndex index,
@@ -131,8 +131,11 @@ public class NGrams {
         }
 
         final Charset charset = Charset.forName(inFileEncoding);
-        final IndexWriter writer = index.getIndexWriter(false);
+        final IndexWriter writer = index.getIndexWriter();
         int cur = 0;
+        
+        writer.deleteAll();
+        writer.commit();
 
         try (BufferedReader reader = Files.newBufferedReader(
                                           new File(inFile).toPath(), charset)) {
@@ -155,8 +158,8 @@ public class NGrams {
                     System.out.println(">>> " + cur);
                 }
             }
-            writer.forceMerge(1); // optimize index
-            writer.close();
+            writer.commit();
+            writer.forceMerge(1); // optimize index            
         }
     }
 
@@ -174,14 +177,13 @@ public class NGrams {
             throw new NullPointerException("multiLinePipedDoc");
         }
 
-        try (IndexWriter writer = index.getIndexWriter(true)) {
-            final String[] pipedDoc = multiLinePipedDoc.trim().split(" *\n *");
+        final IndexWriter writer = index.getIndexWriter();
+        final String[] pipedDoc = multiLinePipedDoc.trim().split(" *\n *");
 
-            for (String line: pipedDoc) {
-                indexDocument(index, writer, schema, line, false);
-            }
-            writer.close();
+        for (String line: pipedDoc) {
+            indexDocument(index, writer, schema, line, false);
         }
+        writer.commit();
     }
 
     public static boolean indexDocument(final NGIndex index,
@@ -251,7 +253,7 @@ public class NGrams {
                              Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
         
-        try (IndexWriter writer = index.getIndexWriter(true)) {
+        try (IndexWriter writer = index.getIndexWriter()) {
             final Query query;
             if (id.trim().endsWith("*")) { // delete all documents with same prefix
                 query = new PrefixQuery(
@@ -406,8 +408,8 @@ public class NGrams {
         assert text != null;
 
         //final Charset utf8 = Charset.availableCharsets().get("UTF-8");
-        final byte[] b1 = text.getBytes(utf8) ;
-        final byte[] b2 = new String(b1, utf8).getBytes(utf8);
+        final byte[] b1 = text.getBytes(UTF8) ;
+        final byte[] b2 = new String(b1, UTF8).getBytes(UTF8);
 
         return java.util.Arrays.equals(b1, b2);
     }
@@ -1209,6 +1211,7 @@ public class NGrams {
             }
             final NGIndex index = new NGIndex("dummy", args[1], false);
             index(index, schema, args[4], args[5]);
+            index.close();
             System.out.println("Indexing has finished.");
         } else if (args[0].equals("search1")) {
             if (args.length < 7) {
@@ -1220,6 +1223,7 @@ public class NGrams {
             } else {
                 search(index, schema, args[4], args[5], args[6], args[7]);
             }
+            index.close();
             System.out.println("Searching has finished.");
         } else if (args[0].equals("search2")) {
             if (args.length < 4+1) {
@@ -1241,6 +1245,7 @@ public class NGrams {
                     System.out.println((++pos) + ") " + res);
                 }
             }
+            index.close();
         } else if (args[0].equals("search3")) {
             if (args.length < 5) {
                 usage();
@@ -1261,12 +1266,14 @@ public class NGrams {
                     System.out.println((++pos) + ") " + res);
                 }
             }
+            index.close();
         } else if (args[0].equals("export")) {
             if (args.length != 6) {
                 usage();
             }
             final NGIndex index = new NGIndex("dummy", args[1], true);
             export(index, schema, args[4], args[5]);
+            index.close();
         } else {
             usage();
         }
