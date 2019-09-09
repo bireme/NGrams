@@ -68,7 +68,7 @@ public class NGIndex {
     }
 
     public IndexWriter getIndexWriter() throws IOException {
-        if (writer == null) {
+        if ((writer == null) || (!writer.isOpen())) {
             writer = getIndexWriter(indexPath, analyzer);
         }
         return writer;
@@ -94,8 +94,6 @@ public class NGIndex {
         final Directory directory = FSDirectory.open(dir.toPath());
         final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);
         
-        
-
         cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
 
         return new IndexWriter(directory, cfg);
