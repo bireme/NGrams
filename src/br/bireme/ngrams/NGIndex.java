@@ -66,6 +66,10 @@ public class NGIndex {
     public String getName() {
         return name;
     }
+    
+    public String getIndexPath() {
+        return indexPath;
+    }
 
     public IndexWriter getIndexWriter() throws IOException {
         if ((writer == null) || (!writer.isOpen())) {

@@ -59,11 +59,11 @@ import org.xml.sax.SAXException;
  * date: 20150624
  */
 public class NGrams {
-    static class Result implements Comparable<Result> {
-        final String[] param;
-        final Document doc;
-        final float similarity;
-        final float score;
+    public static class Result implements Comparable<Result> {
+        public final String[] param;
+        public final Document doc;
+        public final float similarity;
+        public final float score;
         private final String compare;
 
         Result(final String[] param,
@@ -430,7 +430,8 @@ public class NGrams {
                               final String inFile,
                               final String inFileEncoding,
                               final String outFile,
-                              final String outFileEncoding) throws IOException,
+                              final String outFileEncoding,
+                              final boolean selfCheck) throws IOException,
                                                                 ParseException {
         if (index == null) {
             throw new NullPointerException("index");
@@ -485,7 +486,7 @@ public class NGrams {
                         throw new IOException("invalid number of fields: " + line);
                     }
                     searchRaw(parameters, searcher, analyzer, ngDistance,
-                                                    tline, true, id_id, results);
+                                        tline, true, selfCheck, id_id, results);
                     if (!results.isEmpty()) {
                         writeOutput(parameters, results, writer);
                     }
@@ -498,7 +499,8 @@ public class NGrams {
     public static Set<String> search(final NGIndex index,
                                      final NGSchema schema,
                                      final String text,
-                                     final boolean original) throws IOException,
+                                     final boolean original,
+                                     final boolean selfCheck) throws IOException,
                                                                 ParseException {
         if (index == null) {
             throw new NullPointerException("index");
@@ -524,7 +526,7 @@ public class NGrams {
         }
 
         searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
-                                                                id_id, results);
+                                                    selfCheck, id_id, results);
 
         searcher.getIndexReader().close();
 
@@ -535,7 +537,8 @@ public class NGrams {
     public static Set<String> srcWithoutSimil(final NGIndex index,
                                               final NGSchema schema,
                                               final String text,
-                                              final boolean original)
+                                              final boolean original,
+                                              final boolean selfCheck)
                                                          throws IOException,
                                                                 ParseException {
         if (index == null) {
@@ -562,7 +565,7 @@ public class NGrams {
         }
 
         searchRaw(parameters, searcher, analyzer, ngDistance, ttext, false,
-                                                                id_id, results);
+                                                     selfCheck, id_id, results);
 
         searcher.getIndexReader().close();
 
@@ -572,7 +575,8 @@ public class NGrams {
 
     public static Set<String> searchJson(final NGIndex index,
                                          final NGSchema schema,
-                                         final String text)
+                                         final String text,
+                                         final boolean selfCheck)
                                             throws IOException, ParseException {
         if (index == null) {
             throw new NullPointerException("index");
@@ -593,21 +597,22 @@ public class NGrams {
         final String ttext = text.replace(':', ' ').trim();
 
         searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
-                                                                id_id, results);
+                                                     selfCheck, id_id, results);
         searcher.getIndexReader().close();
 
         return results2json(parameters, results.descendingSet());
     }
 
     // <id>|<ngram search text>|<content>|...|<content>
-    private static void searchRaw(final Parameters parameters,
-                                  final IndexSearcher searcher,
-                                  final NGAnalyzer analyzer,
-                                  final NGramDistance ngDistance,
-                                  final String text,
-                                  final boolean useSimilarity,
-                                  final Set<String> id_id,
-                                  final Set<Result> results)
+    public static void searchRaw(final Parameters parameters,
+                                 final IndexSearcher searcher,
+                                 final NGAnalyzer analyzer,
+                                 final NGramDistance ngDistance,
+                                 final String text,
+                                 final boolean useSimilarity,
+                                 final boolean selfCheck,
+                                 final Set<String> id_id,
+                                 final Set<Result> results)
                                             throws IOException, ParseException {
         assert parameters != null;
         assert searcher != null;
@@ -625,14 +630,15 @@ public class NGrams {
         if (param.length != parameters.nameFields.size()) {
             throw new IOException(text);
         }
-        final String fname = parameters.indexed.name;
-        final QueryParser parser = new QueryParser(fname, analyzer);
+        
         final String ntext = Tools.limitSize(Tools.normalize(
                                  param[parameters.indexed.pos], OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
         final int MAX_RESULTS = 20;
 
         if (!ntext.isEmpty()) {
+            final String fname = parameters.indexed.name;
+            final QueryParser parser = new QueryParser(fname, analyzer);
             final Query query = parser.parse(QueryParser.escape(ntext));
             final TopDocs top = searcher.search(query, MAX_RESULTS);
             final float lower = parameters.scores.first().minValue;
@@ -657,8 +663,8 @@ public class NGrams {
                             //System.out.println("Atualizando tot=" + tot + " score=" + sdoc.score + " similarity=" + similarity+ " text=" + doc.get(fname));
                         }
                     } else {
-                        final Result out = createResult(id_id, parameters,
-                             param, doc, ngDistance, similarity, sdoc.score);
+                        final Result out = createResult(id_id, parameters, param, 
+                            doc, ngDistance, similarity, sdoc.score, selfCheck);
                         if (out != null) {
                             results.add(out);
                         }
@@ -669,7 +675,7 @@ public class NGrams {
                         break;    // Only for performance
                     }
                     final Result out = createResult(id_id, parameters,
-                             param, doc, ngDistance, 0, sdoc.score);
+                             param, doc, ngDistance, 0, sdoc.score, selfCheck);
                     if (out != null) {
                         results.add(out);
                     }
@@ -679,13 +685,14 @@ public class NGrams {
     }
 
     // <search doc id>|<similarity>|<index doc id>|<ngram search text>|<ngram index text>|<matches>(<possible matches>)
-    private static Result createResult(final Set<String> id_id,
-                                       final Parameters parameters,
-                                       final String[] param,
-                                       final Document doc,
-                                       final NGramDistance ngDistance,
-                                       final float similarity,
-                                       final float score) {
+    private static synchronized Result createResult(final Set<String> id_id,
+                                                    final Parameters parameters,
+                                                    final String[] param,
+                                                    final Document doc,
+                                                    final NGramDistance ngDistance,
+                                                    final float similarity,
+                                                    final float score,
+                                                    final boolean selfCheck) {
         assert id_id != null;
         assert parameters != null;
         assert param != null;
@@ -720,7 +727,18 @@ public class NGrams {
         final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2)
                                                           : (idb2 + "_" + idb1);
 
-        if (matchedFields == 0) {
+        if ((matchedFields == 0) || (selfCheck && id_id.contains(id1id2))) {
+            ret = null; // document is reject (no field passed the check)
+        } else {
+            if (checkScore(parameters, similarity, matchedFields, maxScore)) {
+                id_id.add(id1id2);
+                ret = new NGrams.Result(param, doc, similarity, score);              
+            } else {
+                ret = null;
+            }
+        }
+        
+        /*if (matchedFields == 0) {
             ret = null; // document is reject (no field passed the check)
         } else {
             if (checkScore(parameters, similarity, matchedFields, maxScore)) {
@@ -734,7 +752,7 @@ public class NGrams {
             } else {
                 ret = null;
             }
-        }
+        }*/
         return ret;
     }
 
@@ -759,8 +777,8 @@ public class NGrams {
         return (score != null) && (matchedFields >= score.minFields);
     }
 
-    private static Set<String> results2pipe(final Parameters parameters,
-                                            final Set<Result> results) {
+    public static Set<String> results2pipe(final Parameters parameters,
+                                           final Set<Result> results) {
         assert parameters != null;
         assert results != null;
 
@@ -786,8 +804,8 @@ public class NGrams {
         return ret.descendingSet();
     }
 
-    private static Set<String> results2pipeFull(final Parameters parameters,
-                                                final Set<Result> results) {
+    public static Set<String> results2pipeFull(final Parameters parameters,
+                                               final Set<Result> results) {
         assert parameters != null;
         assert results != null;
 
@@ -824,8 +842,8 @@ public class NGrams {
         return ret.descendingSet();
     }
 
-    private static Set<String> results2json(final Parameters parameters,
-                                            final Set<Result> results) {
+    public static Set<String> results2json(final Parameters parameters,
+                                           final Set<Result> results) {
         assert parameters != null;
         assert results != null;
 
@@ -1019,7 +1037,6 @@ public class NGrams {
                 ret = compareFields(field, xfld, xtext);
             }
         }
-
         return ret;
     }
 
@@ -1219,9 +1236,9 @@ public class NGrams {
             }
             final NGIndex index = new NGIndex("dummy", args[1], true);
             if (args.length == 7) {
-                search(index, schema, args[4], args[5], args[6], "utf-8");
+                search(index, schema, args[4], args[5], args[6], "utf-8", false);
             } else {
-                search(index, schema, args[4], args[5], args[6], args[7]);
+                search(index, schema, args[4], args[5], args[6], args[7], false);
             }
             index.close();
             System.out.println("Searching has finished.");
@@ -1233,9 +1250,9 @@ public class NGrams {
             Set<String> set = null;
 
             if (args.length == 5) {
-                set = search(index, schema, args[4], false);
+                set = search(index, schema, args[4], false, false);
             } else if (args[5].equals("--original")) {
-                set = search(index, schema, args[4], true);
+                set = search(index, schema, args[4], true, false);
             } else usage();
             if ((set == null) || (set.isEmpty())) {
                 System.out.println("No result was found.");
@@ -1254,9 +1271,9 @@ public class NGrams {
             Set<String> set = null;
 
             if (args.length == 5) {
-                set = srcWithoutSimil(index, schema, args[4], false);
+                set = srcWithoutSimil(index, schema, args[4], false, false);
             } else if (args[5].equals("--original")) {
-                set = srcWithoutSimil(index, schema, args[4], true);
+                set = srcWithoutSimil(index, schema, args[4], true, false);
             } else usage();
             if ((set == null) || (set.isEmpty())) {
                 System.out.println("No result was found.");
