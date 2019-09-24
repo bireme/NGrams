@@ -153,7 +153,7 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                final boolean ret = indexDocument(index, writer, schema, line, false);
+                final boolean ret = indexDocument(index, writer, schema, line, true);
                 if (ret && (++cur % 100000 == 0)) {
                     System.out.println(">>> " + cur);
                 }
@@ -181,7 +181,7 @@ public class NGrams {
         final String[] pipedDoc = multiLinePipedDoc.trim().split(" *\n *");
 
         for (String line: pipedDoc) {
-            indexDocument(index, writer, schema, line, false);
+            indexDocument(index, writer, schema, line, true);
         }
         writer.commit();
     }
@@ -230,11 +230,11 @@ public class NGrams {
 
             if (doc != null) {
                 if (allowDocUpdate) {
-                    writer.updateDocument(new Term("id", id), doc);
-                    writer.commit();
+                    writer.updateDocument(new Term("id", id), doc);                    
                 } else {
                     writer.addDocument(doc);
-                }                
+                }
+                writer.commit();                
                 ret = true;
             }
         }
