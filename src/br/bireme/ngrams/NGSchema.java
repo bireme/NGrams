@@ -108,9 +108,24 @@ public class NGSchema {
         builder.append("{");
         builder.append("\"name\":\"");
         builder.append(name);
-        builder.append("\",\"total\":");
+        builder.append("\",\"score\":[");
+        first = true;
+        for (Score score: parameters.scores) {
+            if (first) {
+                first = false;
+            } else {
+                builder.append(",");
+            }
+            builder.append("{\"minValue\":\"");
+            builder.append(score.minValue);
+            builder.append("\",\"minFields\":\"");
+            builder.append(score.minFields);
+            builder.append("\"}");
+        }
+        builder.append("],\"total\":");
         builder.append(fields.size());
         builder.append(",\"params\":[");
+        first = true;
         for (Field fld: fields) {
             if (first) {
                 first = false;

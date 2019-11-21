@@ -133,7 +133,7 @@ public class NGrams {
         final Charset charset = Charset.forName(inFileEncoding);
         final IndexWriter writer = index.getIndexWriter();
         int cur = 0;
-        
+
         writer.deleteAll();
         writer.commit();
 
@@ -153,13 +153,13 @@ public class NGrams {
                 if (line == null) {
                     break;
                 }
-                final boolean ret = indexDocument(index, writer, schema, line, true);
+                final boolean ret = indexDocument(index, writer, schema, line, true, false);
                 if (ret && (++cur % 100000 == 0)) {
                     System.out.println(">>> " + cur);
                 }
             }
             writer.commit();
-            writer.forceMerge(1); // optimize index            
+            writer.forceMerge(1); // optimize index
         }
     }
 
@@ -181,7 +181,7 @@ public class NGrams {
         final String[] pipedDoc = multiLinePipedDoc.trim().split(" *\n *");
 
         for (String line: pipedDoc) {
-            indexDocument(index, writer, schema, line, true);
+            indexDocument(index, writer, schema, line, true, false);
         }
         writer.commit();
     }
@@ -190,7 +190,8 @@ public class NGrams {
                                         final IndexWriter writer,
                                         final NGSchema schema,
                                         final String pipedDoc,
-                                        final boolean allowDocUpdate)
+                                        final boolean allowDocUpdate,
+                                        final boolean commit)
                                             throws IOException, ParseException {
         if (index == null) {
             throw new NullPointerException("index");
@@ -230,11 +231,13 @@ public class NGrams {
 
             if (doc != null) {
                 if (allowDocUpdate) {
-                    writer.updateDocument(new Term("id", id), doc);                    
+                    writer.updateDocument(new Term("id", id), doc);
                 } else {
                     writer.addDocument(doc);
                 }
-                writer.commit();                
+                if (commit) {
+                  writer.commit();
+                }
                 ret = true;
             }
         }
@@ -252,7 +255,7 @@ public class NGrams {
         final String idN = Tools.limitSize(
                              Tools.normalize(id, OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-        
+
         try (IndexWriter writer = index.getIndexWriter()) {
             final Query query;
             if (id.trim().endsWith("*")) { // delete all documents with same prefix
@@ -261,7 +264,7 @@ public class NGrams {
             } else {
                 query = new TermQuery(new Term("id", idN));
             }
-                        
+
             writer.deleteDocuments(query);
             writer.commit();
         }
@@ -394,7 +397,7 @@ public class NGrams {
                           Tools.normalize(dbName + "_" + id, OCC_SEPARATOR),
                                                                 Store.YES));
         }
-        
+
         return doc;
     }
 
@@ -630,7 +633,7 @@ public class NGrams {
         if (param.length != parameters.nameFields.size()) {
             throw new IOException(text);
         }
-        
+
         final String ntext = Tools.limitSize(Tools.normalize(
                                  param[parameters.indexed.pos], OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
@@ -663,7 +666,7 @@ public class NGrams {
                             //System.out.println("Atualizando tot=" + tot + " score=" + sdoc.score + " similarity=" + similarity+ " text=" + doc.get(fname));
                         }
                     } else {
-                        final Result out = createResult(id_id, parameters, param, 
+                        final Result out = createResult(id_id, parameters, param,
                             doc, ngDistance, similarity, sdoc.score, selfCheck);
                         if (out != null) {
                             results.add(out);
@@ -732,12 +735,12 @@ public class NGrams {
         } else {
             if (checkScore(parameters, similarity, matchedFields, maxScore)) {
                 id_id.add(id1id2);
-                ret = new NGrams.Result(param, doc, similarity, score);              
+                ret = new NGrams.Result(param, doc, similarity, score);
             } else {
                 ret = null;
             }
         }
-        
+
         /*if (matchedFields == 0) {
             ret = null; // document is reject (no field passed the check)
         } else {
