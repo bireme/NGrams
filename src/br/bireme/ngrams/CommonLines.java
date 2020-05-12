@@ -22,7 +22,7 @@ import java.util.Map;
  */
 public class CommonLines {
 
-    public static void CommonLines(final String file1,
+    public static void commonLines(final String file1,
                                    final String file1Encoding,
                                    final int  file1Columm,
                                    final String file2,
@@ -90,7 +90,7 @@ public class CommonLines {
         if (args.length != 7) {
             usage();
         }
-        CommonLines(args[0], args[1], Integer.parseInt(args[2]),
+        commonLines(args[0], args[1], Integer.parseInt(args[2]),
                     args[3], args[4], Integer.parseInt(args[5]),
                     args[6].equals("file1Lines"));
     }

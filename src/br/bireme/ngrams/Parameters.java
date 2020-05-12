@@ -21,6 +21,7 @@ public class Parameters {
     final TreeSet<Score> scores;
     final DatabaseField db;
     final IdField id;
+    final AuthorsField authors;
     final IndexedNGramField indexed;
     final Set<ExactField> exacts;
     final Set<NGramField> ngrams;
@@ -33,6 +34,7 @@ public class Parameters {
     Parameters(final TreeSet<Score> scores,
                final DatabaseField db,
                final IdField id,
+               final AuthorsField authors,
                final IndexedNGramField indexed,
                final Set<ExactField> exacts,
                final Set<NGramField> ngrams,
@@ -50,6 +52,7 @@ public class Parameters {
         this.scores = scores;
         this.db = db;
         this.id = id;
+        this.authors = authors;
         this.indexed = indexed;
         this.exacts = exacts;
         this.ngrams = ngrams;
@@ -57,8 +60,8 @@ public class Parameters {
         this.nocompare = nocompare;
 
         // number of fields
-        final int nfields = 3 + exacts.size() + ngrams.size() + regexps.size()
-                                                             + nocompare.size();
+        final int nfields = 3 + ((authors == null) ? 0 : 1)  + exacts.size() +
+                   ngrams.size() + regexps.size() + nocompare.size();
 System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.size()
                                                       + "+" + nocompare.size());
         int maxPos = 0;
@@ -68,6 +71,9 @@ System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.s
 
         maxPos = addField(db, nfields, maxPos);
         maxPos = addField(id, nfields, maxPos);
+        if (authors != null) {
+            maxPos = addField(authors, nfields, maxPos);
+        }
         maxPos = addField(indexed, nfields, maxPos);
 
         for (ExactField exact : exacts) {
@@ -93,19 +99,19 @@ System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.s
     public TreeSet<Score> getScores() {
         return scores;
     }
-    
+
     public Map<String,Field> getNameFields() {
         return nameFields;
     }
-    
+
     public Map<Integer,Field> getSearchFields() {
         return sfields;
     }
-    
+
     public float getMinSimilarity() {
         return scores.first().minValue;
     }
-    
+
     public int getIndexedPos() {
         return indexed.pos;
     }

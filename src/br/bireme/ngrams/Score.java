@@ -12,7 +12,7 @@ package br.bireme.ngrams;
  * @author Heitor Barbieri
  * date: 20150707
  */
-public class Score implements Comparable {
+public class Score implements Comparable<Score> {
     /**
      * Minimum score value [0,1]
      */
@@ -34,41 +34,21 @@ public class Score implements Comparable {
         this.minValue = minValue;
         this.minFields = minFields;
     }
-    
+
     public float getMinValue() {
         return minValue;
     }
-    
+
     public int getMinFields() {
         return minFields;
     }
 
     @Override
-    public int hashCode() {
-        int hash = 3;
-        hash = 37 * hash + Float.floatToIntBits(this.minValue);
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Score other = (Score) obj;
-        return (Float.floatToIntBits(this.minValue) !=
-                                         Float.floatToIntBits(other.minValue));
-    }
-
-    @Override
-    public int compareTo(Object t) {
+    public int compareTo(final Score t) {
         if (t == null) {
             throw new NullPointerException();
         }
-        final float res = (minValue - ((Score)t).minValue);
+        final float res = (minValue - t.minValue);
 
         return (res < 0) ? -1 : (res == 0) ? 0 : 1;
     }

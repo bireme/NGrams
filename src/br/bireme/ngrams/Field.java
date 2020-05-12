@@ -85,6 +85,13 @@ class DatabaseField extends Field {
     }
 }
 
+class AuthorsField extends Field {
+    final static String FNAME = "authors";
+    AuthorsField(final int pos) {
+        super(FNAME, pos, Status.MAX_SCORE, null);
+    }
+}
+
 class NoCompareField extends Field {
     NoCompareField(final String name,
                    final int pos) {

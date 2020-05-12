@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -251,6 +252,53 @@ public class Tools {
         return ret;
     }
 
+    /**
+     *
+     * @param in input String
+     * @param occSeparator string separating each occurrence
+     * @return string array with every not digit-alphabetic charater removed,
+     *         accents removed and all converted to lower case.
+     */
+    public static String[] normalize2(final String in,
+                                      final String occSeparator) {
+        final String[] ret;
+
+        if (in == null) {
+            ret = null;
+        } else {
+            ret = in.trim().split(occSeparator);
+            final int len = ret.length;
+
+            for (int idx = 0; idx < len; idx++) {
+                final String str1 = ret[idx].trim().toLowerCase();
+                final String str2 = Normalizer.normalize(str1, Normalizer.Form.NFD).
+                    replaceAll("[^a-z0-9]", " ");
+                final StringBuilder builder = new StringBuilder();
+                boolean wasNumber = false;
+                int len2 = str2.length();
+                for (int idx2 = 0; idx2 < len2; idx2++) {
+                    final int ch = str2.charAt(idx2);
+                    if ((ch >= 97) && (ch <= 122)) {  // a-z
+                        wasNumber = false;
+                        builder.append((char)ch);
+                    } else if ((ch >= 48) && (ch <= 57)) { // 0-9
+                        wasNumber = true;
+                        builder.append((char)ch);
+                    } else if ((idx2 > 0) && (idx2 < len2 - 1)) {
+                        final int after  = str2.charAt(idx2 + 1);
+                        if (wasNumber && (after >= 48) && (after <= 57)) { // 0-9
+                            builder.append(' ');
+                        }
+                    }
+                }
+                ret[idx] = builder.toString();
+            }
+            Arrays.sort(ret);
+        }
+
+        return ret;
+    }
+
     public static int countOccurrences(final String in,
                                        final char needle) {
         int count = 0;
@@ -268,6 +316,25 @@ public class Tools {
     public static float NGDistance(final String str1,
                                    final String str2) {
         return new NGramDistance(3).getDistance(str1, str2);
+    }
+
+    public static String mkString(final String[] entries,
+                                  final String separator) {
+        assert entries != null;
+        assert separator != null;
+
+        boolean first = true;
+        String ret = "";
+
+        for (String entry: entries) {
+            if (first) {
+                first = false;
+            } else {
+                ret += ",";
+            }
+            ret += entry.trim();
+        }
+        return ret;
     }
 
    /* public static Map<String, Object> json2Map(final String json) {

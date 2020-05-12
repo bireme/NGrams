@@ -48,7 +48,7 @@ public class NGSchema {
         }
         this.name = name;
         this.config = readFile(confFile, confFileEncoding);
-        this.parameters = ParameterParser.parseParameters(this.config);
+        this.parameters = ParameterParser.parseParameters(this.name, this.config);
         this.posNames = new TreeMap<>();
         this.namesPos = new TreeMap<>();
 
@@ -70,7 +70,7 @@ public class NGSchema {
         }
         this.name = name;
         this.config = content;
-        this.parameters = ParameterParser.parseParameters(this.config);
+        this.parameters = ParameterParser.parseParameters(this.name, this.config);
         this.posNames = new TreeMap<>();
         this.namesPos = new TreeMap<>();
 
@@ -143,6 +143,8 @@ public class NGSchema {
                 builder.append("idField");
             } else if (fld instanceof DatabaseField) {
                 builder.append("databaseField");
+            } else if (fld instanceof AuthorsField) {
+                builder.append("authorsField");
             } else if (fld instanceof NoCompareField) {
                 builder.append("NoCompField");
             } else if (fld instanceof ExactField) {
@@ -174,6 +176,8 @@ public class NGSchema {
         }
         ret += "\n\t<databaseField pos=\"" + parameters.db.pos + "\"/>";
         ret += "\n\t<idField pos=\"" + parameters.id.pos + "\"/>";
+        ret += "\n\t<authorsField pos=\"" + parameters.authors.pos + "\" name=\"" +
+                parameters.authors.name + "\"/>";
         ret += "\n\t<idxNGramField pos=\"" + parameters.indexed.pos + "\" name=\"" +
                 parameters.indexed.name + "\"/>";
 

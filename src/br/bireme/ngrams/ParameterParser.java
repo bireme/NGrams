@@ -31,8 +31,9 @@ import org.xml.sax.SAXException;
  *      <score minValue="0.6" minFields="4"/>
  *      <databaseField pos="0"/>
  *      <idField pos="2"/>
+ *      <authorsField pos="3" name="autores"
  *      <idxNGramField pos="4" name="titulo"/>
- *      <nGramField pos="5" name="autores" minScore="0.7" match="REQUIRED" requiredField="titulo"/>
+ *      <nGramField pos="5" name="outrosAutores" minScore="0.7" match="REQUIRED" requiredField="titulo"/>
  *      <exactField pos="6" name="volume" />
  *      <exactField pos="8" name="numero" match="REQUIRED"/>
  *      <exactField pos="12" name="ano" />
@@ -45,7 +46,8 @@ import org.xml.sax.SAXException;
  * date: 20150707
  */
 class ParameterParser {
-    static Parameters parseParameters(final String spec) throws
+    static Parameters parseParameters(final String name,
+                                      final String spec) throws
                                                    IOException,
                                                    ParserConfigurationException,
                                                    SAXException {
@@ -60,102 +62,142 @@ class ParameterParser {
         doc.getDocumentElement().normalize();
 
         final NodeList nDbList = doc.getElementsByTagName("databaseField");
-        final DatabaseField src = parseDatabaseField(nDbList);
+        final DatabaseField src = parseDatabaseField(name, nDbList);
 
         final NodeList nIdList = doc.getElementsByTagName("idField");
-        final IdField id = parseIdField(nIdList);
+        final IdField id = parseIdField(name, nIdList);
+
+        final NodeList nAuthorsList = doc.getElementsByTagName("authorsField");
+        final AuthorsField authors = parseAuthorsField(name, nAuthorsList);
 
         final NodeList nIdxNGramList = doc.getElementsByTagName("idxNGramField");
-        final IndexedNGramField idxNGram =  parseIdxNGramField(nIdxNGramList);
+        final IndexedNGramField idxNGram =  parseIdxNGramField(name, nIdxNGramList);
 
         final NodeList nExactList = doc.getElementsByTagName("exactField");
-        final Set<ExactField> exact =  parseExactFields(nExactList);
+        final Set<ExactField> exact =  parseExactFields(name, nExactList);
 
         final NodeList nNGramList = doc.getElementsByTagName("nGramField");
-        final Set<NGramField> ngram = parseNGramFields(nNGramList);
+        final Set<NGramField> ngram = parseNGramFields(name, nNGramList);
 
         final NodeList nRegExpList = doc.getElementsByTagName("regExpField");
-        final Set<RegExpField> regexp = parseRegExpFields(nRegExpList);
+        final Set<RegExpField> regexp = parseRegExpFields(name, nRegExpList);
 
         final NodeList nNoCompareList = doc.getElementsByTagName("noCompField");
-        final Set<NoCompareField> nocomp = parseNoCompareFields(nNoCompareList);
+        final Set<NoCompareField> nocomp = parseNoCompareFields(name, nNoCompareList);
 
         final NodeList nScoreList = doc.getElementsByTagName("score");
-        final TreeSet<Score> scrs = parseScores(nScoreList);
+        final TreeSet<Score> scrs = parseScores(name, nScoreList);
 
-        return new Parameters(scrs, src, id, idxNGram, exact, ngram, regexp,
-                                                                        nocomp);
+        return new Parameters(scrs, src, id, authors, idxNGram, exact, ngram,
+                                                          regexp, nocomp);
     }
 
-    static DatabaseField parseDatabaseField(final NodeList nDbList)
+    static DatabaseField parseDatabaseField(final String name,
+                                            final NodeList nDbList)
                                                             throws IOException {
         assert nDbList != null;
 
         if (nDbList.getLength() != 1) {
-            throw new IOException("number of 'databaseField' is not one");
+            throw new IOException("[" + name + 
+                                    "] - number of 'databaseField' is not one");
         }
 
         final Node nNode = nDbList.item(0);
         if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-            throw new IOException("'databaseField' is not an Element node");
+            throw new IOException("[" + name + 
+                                  "] - 'databaseField' is not an Element node");
         }
         final Element eElement = (Element) nNode;
         final String pos = eElement.getAttribute("pos").trim();
         if (pos.isEmpty()) {
-            throw new IOException("missing 'pos' attribute");
+            throw new IOException("[" + name + 
+                                 "] - databaseField - missing 'pos' attribute");
         }
         final DatabaseField src = new DatabaseField(Integer.parseInt(pos));
         return src;
     }
 
-    static IdField parseIdField(final NodeList nIdList) throws IOException {
+    static IdField parseIdField(final String name,
+                                final NodeList nIdList) throws IOException {
         assert nIdList != null;
 
         if (nIdList.getLength() != 1) {
-            throw new IOException("number of 'idField' is not one");
+            throw new IOException("[" + name + 
+                                          "] - number of 'idField' is not one");
         }
 
         final Node nNode = nIdList.item(0);
         if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-            throw new IOException("'idfield' is not an Element node");
+            throw new IOException("[" + name +
+                                        "] - 'idField' is not an Element node");
         }
         final Element eElement = (Element) nNode;
         final String pos = eElement.getAttribute("pos").trim();
         if (pos.isEmpty()) {
-            throw new IOException("missing 'pos' attribute");
+            throw new IOException("[" + name +
+                                       "] - idField - missing 'pos' attribute");
         }
         final IdField id = new IdField(Integer.parseInt(pos));
         return id;
     }
 
-    static IndexedNGramField parseIdxNGramField(final NodeList nIdxNGramList)
+    static AuthorsField parseAuthorsField(final String name,
+                                          final NodeList nIdList) throws IOException {
+        assert nIdList != null;
+
+        if (nIdList.getLength() == 0) {
+            return null;
+        }
+
+        final Node nNode = nIdList.item(0);
+        if (nNode.getNodeType() != Node.ELEMENT_NODE) {
+            throw new IOException("[" + name + 
+                                   "] - 'authorsField' is not an Element node");
+        }
+        final Element eElement = (Element) nNode;
+        final String pos = eElement.getAttribute("pos").trim();
+        if (pos.isEmpty()) {
+            throw new IOException("[" + name + 
+                                  "] - authorsField - missing 'pos' attribute");
+        }
+        final AuthorsField authors = new AuthorsField(Integer.parseInt(pos));
+        return authors;
+    }
+
+    static IndexedNGramField parseIdxNGramField(final String name,
+                                                final NodeList nIdxNGramList)
                                                             throws IOException {
         assert nIdxNGramList != null;
 
         if (nIdxNGramList.getLength() != 1) {
-            throw new IOException("number of 'idxNGramField' is not one");
+            throw new IOException("[" + name + 
+                                    "] - number of 'idxNGramField' is not one");
         }
         final Node nNode = nIdxNGramList.item(0);
 
         if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-            throw new IOException("'idxNGramField' is not an Element node");
+            throw new IOException("[" + name + 
+                                  "] - 'idxNGramField' is not an Element node");
         }
         final Element eElement = (Element) nNode;
-        final String name = eElement.getAttribute("name").trim();
-        if (name.isEmpty()) {
-            throw new IOException("missing 'name' attribute");
+        final String name1 = eElement.getAttribute("name").trim();
+        if (name1.isEmpty()) {
+            throw new IOException("[" + name + 
+                                "] - idxNGramField - missing 'name' attribute");
         }
         final String pos = eElement.getAttribute("pos").trim();
         if (pos.isEmpty()) {
-            throw new IOException("missing 'pos' attribute");
+            throw new IOException("[" + name + 
+                                 "] - idxNGramField - missing 'pos' attribute");
         }
         final IndexedNGramField idxNGram = new IndexedNGramField(
-              name,
+              name1,
               Integer.parseInt(pos));
         return idxNGram;
     }
 
-    static Set<NGramField> parseNGramFields(final NodeList nNGramList)
+    static Set<NGramField> parseNGramFields(final String name,
+                                            final NodeList nNGramList)
                                                             throws IOException {
         assert nNGramList != null;
 
@@ -164,16 +206,19 @@ class ParameterParser {
             final Node nNode = nNGramList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'nGramField' is not an Element node");
+                throw new IOException("[" + name + 
+                                     "] - 'nGramField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
-            final String name = eElement.getAttribute("name").trim();
-            if (name.isEmpty()) {
-                throw new IOException("missing 'name' attribute");
+            final String name1 = eElement.getAttribute("name").trim();
+            if (name1.isEmpty()) {
+                throw new IOException("[" + name + ""
+                        + "         ] - nGramField - missing 'name' attribute");
             }
             final String pos = eElement.getAttribute("pos").trim();
             if (pos.isEmpty()) {
-                throw new IOException("missing 'pos' attribute");
+                throw new IOException("[" + name + 
+                                    "] - nGramField - missing 'pos' attribute");
             }
             final Status match;
             String matchStr = eElement.getAttribute("match").trim();
@@ -182,7 +227,8 @@ class ParameterParser {
             }
             if ((!matchStr.equals("REQUIRED")) &&
                 (!matchStr.equals("MAX_SCORE"))) {
-                throw new IOException("invalid 'match' attribute value: "
+                throw new IOException("[" + name + 
+                            "] - nGramField - invalid 'match' attribute value: "
                                                                 + matchStr);
             }
             match = Status.valueOf(matchStr);
@@ -190,11 +236,12 @@ class ParameterParser {
                                                                         .trim();
             final String minScore = eElement.getAttribute("minScore").trim();
             if (minScore.isEmpty()) {
-                throw new IOException("missing 'minScore' attribute");
+                throw new IOException("[" + name + 
+                               "] - nGramField - missing 'minScore' attribute");
             }
 
             final NGramField nGram = new NGramField(
-                  name,
+                  name1,
                   Integer.parseInt(pos),
                   match,
                   (requiredField.isEmpty() ? null : requiredField),
@@ -204,7 +251,8 @@ class ParameterParser {
         return ngramSet;
     }
 
-    static Set<RegExpField> parseRegExpFields(final NodeList nRegExpList)
+    static Set<RegExpField> parseRegExpFields(final String name,
+                                              final NodeList nRegExpList)
                                                             throws IOException {
         assert nRegExpList != null;
 
@@ -213,26 +261,29 @@ class ParameterParser {
             final Node nNode = nRegExpList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'regExpField' is not an Element node");
+                throw new IOException("[" + name + 
+                                    "] - 'regExpField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
-            final String name = eElement.getAttribute("name").trim();
-            if (name.isEmpty()) {
-                throw new IOException("missing 'name' attribute");
+            final String name1 = eElement.getAttribute("name").trim();
+            if (name1.isEmpty()) {
+                throw new IOException("[" + name + 
+                                  "] - regExpField - missing 'name' attribute");
             }
             final String pos = eElement.getAttribute("pos").trim();
             if (pos.isEmpty()) {
-                throw new IOException("missing 'pos' attribute");
+                throw new IOException("[" + name + 
+                                   "] - regExpField - missing 'pos' attribute");
             }
             final Status match;
-            final Set<String> content;
             String matchStr = eElement.getAttribute("match").trim();
             if (matchStr.isEmpty()) {
                 matchStr = "REQUIRED";
             }
             if ((!matchStr.equals("REQUIRED")) &&
                 (!matchStr.equals("MAX_SCORE"))) {
-                throw new IOException("invalid 'match' attribute value: "
+                throw new IOException("[" + name + 
+                        "] - regExpField - invalid 'match' attribute value: "
                                                                 + matchStr);
             }
             match = Status.valueOf(matchStr);
@@ -240,14 +291,16 @@ class ParameterParser {
                                                                         .trim();
             final String pattern = eElement.getAttribute("pattern").trim();
             if (pattern.isEmpty()) {
-                throw new IOException("missing 'pattern' attribute");
+                throw new IOException("[" + name + 
+                               "] - regExpField - missing 'pattern' attribute");
             }
             final String sgroupNum = eElement.getAttribute("groupNum").trim();
             if (sgroupNum.isEmpty()) {
-                throw new IOException("missing 'groupNum' attribute");
+                throw new IOException("[" + name + 
+                              "] - regExpField - missing 'groupNum' attribute");
             }
             final RegExpField regexpf = new RegExpField(
-                  name,
+                  name1,
                   Integer.parseInt(pos),
                   match,
                   (requiredField.trim().isEmpty()) ? null : requiredField,
@@ -258,7 +311,8 @@ class ParameterParser {
         return regExpSet;
     }
 
-    static Set<ExactField> parseExactFields(final NodeList nExactList)
+    static Set<ExactField> parseExactFields(final String name,
+                                            final NodeList nExactList)
                                                             throws IOException {
         assert nExactList != null;
 
@@ -267,16 +321,19 @@ class ParameterParser {
             final Node nNode = nExactList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'exactField' is not an Element node");
+                throw new IOException("[" + name + 
+                                     "] - 'exactField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
-            final String name = eElement.getAttribute("name").trim();
-            if (name.isEmpty()) {
-                throw new IOException("missing 'name' attribute");
+            final String name1 = eElement.getAttribute("name").trim();
+            if (name1.isEmpty()) {
+                throw new IOException("[" + name + 
+                                   "] - exactField - missing 'name' attribute");
             }
             final String pos = eElement.getAttribute("pos").trim();
             if (pos.isEmpty()) {
-                throw new IOException("missing 'pos' attribute");
+                throw new IOException("[" + name + 
+                                    "] - exactField - missing 'pos' attribute");
             }
             final Status match;
             String matchStr = eElement.getAttribute("match").trim();
@@ -285,14 +342,15 @@ class ParameterParser {
             }
             if ((!matchStr.equals("REQUIRED")) &&
                 (!matchStr.equals("MAX_SCORE"))) {
-                throw new IOException("invalid 'match' attribute value: "
+                throw new IOException("[" + name + 
+                            "] - exactField - invalid 'match' attribute value: "
                                                                 + matchStr);
             }
             match = Status.valueOf(matchStr);
             final String requiredField = eElement.getAttribute("requiredField")
                                                                         .trim();
             final ExactField def = new ExactField(
-                  name,
+                  name1,
                   Integer.parseInt(pos),
                   match,
                   (requiredField.trim().isEmpty()) ? null : requiredField);
@@ -301,7 +359,8 @@ class ParameterParser {
         return exactSet;
     }
 
-    static Set<NoCompareField> parseNoCompareFields(final NodeList nCompList)
+    static Set<NoCompareField> parseNoCompareFields(final String name,
+                                                    final NodeList nCompList)
                                                             throws IOException {
         assert nCompList != null;
 
@@ -310,38 +369,43 @@ class ParameterParser {
             final Node nNode = nCompList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'noCompField' is not an Element node");
+                throw new IOException("[" + name + 
+                                    "] - 'noCompField' is not an Element node");
             }
             final Element eElement = (Element) nNode;
-            final String name = eElement.getAttribute("name").trim();
-            if (name.isEmpty()) {
-                throw new IOException("missing 'name' attribute");
+            final String name1 = eElement.getAttribute("name").trim();
+            if (name1.isEmpty()) {
+                throw new IOException("[" + name + 
+                                  "] - noCompField - missing 'name' attribute");
             }
             final String pos = eElement.getAttribute("pos").trim();
             if (pos.isEmpty()) {
-                throw new IOException("missing 'pos' attribute");
+                throw new IOException("[" + name + 
+                                   "] - noCompField - missing 'pos' attribute");
             }
-            final NoCompareField def = new NoCompareField(name,
+            final NoCompareField def = new NoCompareField(name1,
                                                         Integer.parseInt(pos));
             noCompareSet.add(def);
         }
         return noCompareSet;
     }
 
-    static TreeSet<Score> parseScores(final NodeList nScoreList)
+    static TreeSet<Score> parseScores(final String name,
+                                      final NodeList nScoreList)
                                                             throws IOException {
         assert nScoreList != null;
 
         final int len = nScoreList.getLength();
         if (len == 0) {
-            throw new IOException("empty score set");
+            throw new IOException("[" + name + "] - empty score set");
         }
         final TreeSet<Score> scoreSet = new TreeSet<>();
         for (int idx = 0; idx < len; idx++) {
             final Node nNode = nScoreList.item(idx);
 
             if (nNode.getNodeType() != Node.ELEMENT_NODE) {
-                throw new IOException("'score' is not an Element node");
+                throw new IOException("[" + name + 
+                                          "] - 'score' is not an Element node");
             }
             final Element eElement = (Element) nNode;
             final Score score = new Score(
