@@ -439,6 +439,7 @@ public class NGrams {
      * @param inFileEncoding
      * @param outFile
      * @param outFileEncoding
+     * @param selfCheck
      * @throws IOException
      * @throws ParseException
      */
@@ -658,7 +659,7 @@ public class NGrams {
             final QueryParser parser = new QueryParser(fname, analyzer);
             final Query query = parser.parse(QueryParser.escape(ntext));
             final TopDocs top = searcher.search(query, MAX_RESULTS);
-            final float lower = parameters.scores.first().minValue;
+            final float lower = parameters.scores.last().minValue;
             final ScoreDoc[] scores = top.scoreDocs;
             int remaining = MAX_RESULTS;
 
@@ -743,7 +744,7 @@ public class NGrams {
         final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2)
                                                           : (idb2 + "_" + idb1);
 
-        if ((matchedFields == 0) || (selfCheck && id_id.contains(id1id2))) {
+        if (selfCheck && id_id.contains(id1id2)) {
             ret = null; // document is reject (no field passed the check)
         } else {
             if (checkScore(parameters, similarity, matchedFields, maxScore)) {
@@ -781,15 +782,14 @@ public class NGrams {
         assert matchedFields > 0;
 
         Score score = null;
-        for (final Score score1 : parameters.scores) {
+        for (final Score score1 : parameters.scores) {            
             final float minValue = maxScore ? 1 : score1.minValue;
             if (similarity >= minValue) {
                 score = score1;
-            } else {
                 break;
             }
         }
-
+        
         return (score != null) && (matchedFields >= score.minFields);
     }
 
@@ -933,7 +933,7 @@ public class NGrams {
      *
      * @param ngDistance
      * @param field
-     * @param params
+     * @param param
      * @param doc
      * @return -2 : fields dont match and contentMatch is MAX_SCORE
      *         -1 : fields dont match and contentMatch is required

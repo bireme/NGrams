@@ -62,8 +62,8 @@ public class Parameters {
         // number of fields
         final int nfields = 3 + ((authors == null) ? 0 : 1)  + exacts.size() +
                    ngrams.size() + regexps.size() + nocompare.size();
-System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.size()
-                                                      + "+" + nocompare.size());
+//System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.size()
+//                                                      + "+" + nocompare.size());
         int maxPos = 0;
 
         sfields = new TreeMap<>();

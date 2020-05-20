@@ -48,7 +48,8 @@ public class Score implements Comparable<Score> {
         if (t == null) {
             throw new NullPointerException();
         }
-        final float res = (minValue - t.minValue);
+        //final float res = (minValue - t.minValue);
+        final float res = (t.minValue - minValue);
 
         return (res < 0) ? -1 : (res == 0) ? 0 : 1;
     }
