@@ -652,7 +652,7 @@ public class NGrams {
         final String ntext = Tools.limitSize(Tools.normalize(
                                  param[parameters.indexed.pos], OCC_SEPARATOR),
                                                        MAX_NG_TEXT_SIZE).trim();
-        final int MAX_RESULTS = 20;
+        final int MAX_RESULTS = 1000; //20;
 
         if (!ntext.isEmpty()) {
             final String fname = parameters.indexed.name;
