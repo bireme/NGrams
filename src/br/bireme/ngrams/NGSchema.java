@@ -176,31 +176,33 @@ public class NGSchema {
         }
         ret += "\n\t<databaseField pos=\"" + parameters.db.pos + "\"/>";
         ret += "\n\t<idField pos=\"" + parameters.id.pos + "\"/>";
-        ret += "\n\t<authorsField pos=\"" + parameters.authors.pos + "\" name=\"" +
+        if (parameters.authors != null) {
+            ret += "\n\t<authorsField pos=\"" + parameters.authors.pos + "\" name=\"" +
                 parameters.authors.name + "\"/>";
+        }
         ret += "\n\t<idxNGramField pos=\"" + parameters.indexed.pos + "\" name=\"" +
-                parameters.indexed.name + "\"/>";
+            parameters.indexed.name + "\"/>";
 
         for (ExactField field: parameters.exacts) {
             ret += "\n\t<exactField pos=\"" + field.pos + "\" name=\"" +
-                   field.name + "\" requiredField=\"" + field.requiredField +
-                   "\" match=\"" + field.contentMatch.name() + "\"/>";
+                field.name + "\" requiredField=\"" + field.requiredField +
+                "\" match=\"" + field.contentMatch.name() + "\"/>";
         }
         for (NGramField field: parameters.ngrams) {
             ret += "\n\t<nGramField pos=\"" + field.pos + "\" name=\"" +
-                   field.name + "\" minScore=\"" + field.minScore +
-                   "\" match=\"" + field.contentMatch.name() + "\"/>";
+                field.name + "\" minScore=\"" + field.minScore +
+                "\" match=\"" + field.contentMatch.name() + "\"/>";
         }
         for (RegExpField field: parameters.regexps) {
             ret += "\n\t<regExpField pos=\"" + field.pos + "\" name=\"" +
-                   field.name + "\" requiredField=\"" + field.requiredField +
-                   "\" match=\"" +
-                   field.contentMatch.name() + "\" pattern=\"" + field.matcher.
-                   pattern().pattern() + "\" groupNum=\"" + field.groupNum + "\"/>";
+                field.name + "\" requiredField=\"" + field.requiredField +
+                "\" match=\"" +
+                field.contentMatch.name() + "\" pattern=\"" + field.matcher.
+                pattern().pattern() + "\" groupNum=\"" + field.groupNum + "\"/>";
         }
         for (NoCompareField field: parameters.nocompare) {
             ret += "\n\t<noCompField pos=\"" + field.pos + "\" name=\"" +
-                   field.name + "\"/>";
+                field.name + "\"/>";
         }
         ret += "\n</config>";
 
