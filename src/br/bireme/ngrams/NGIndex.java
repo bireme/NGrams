@@ -18,6 +18,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.util.Version;
 
 /**
  *
@@ -72,7 +73,8 @@ public class NGIndex {
     }
 
     public IndexWriter getIndexWriter() throws IOException {
-        if ((writer == null) || (!writer.isOpen())) {
+        // if ((writer == null) || (!writer.isOpen())) { // current version
+        if (writer == null) {   // Lucene 4.0
             writer = getIndexWriter(indexPath, analyzer);
         }
         return writer;
@@ -95,8 +97,10 @@ public class NGIndex {
         new File(indexPath, "write.lock").delete();
         
         final File dir = new File(indexPath);
-        final Directory directory = FSDirectory.open(dir.toPath());
-        final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);
+        final Directory directory = FSDirectory.open(dir.toPath());  // current version
+        //final Directory directory = FSDirectory.open(dir);              // Lucene 4.0
+        final IndexWriterConfig cfg = new IndexWriterConfig(analyzer);  // current version
+        //final IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_40, analyzer);  // Lucene 4.0
         
         cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
 
@@ -108,7 +112,8 @@ public class NGIndex {
 
         final DirectoryReader ireader = DirectoryReader.open(
                                 //FSDirectory.open(new File(indexPath).toPath()));
-                               new MMapDirectory(new File(indexPath).toPath()));
+                               new MMapDirectory(new File(indexPath).toPath()));  // current version
+                               //new MMapDirectory(new File(indexPath)));     // Lucene 4.0   
                                //new RAMDirectory(FSDirectory.open(new File(indexPath).toPath()), IOContext.DEFAULT));
                                //new RAMDirectory(FSDirectory.open(new File(indexPath).toPath()), IOContext.READONCE));
 

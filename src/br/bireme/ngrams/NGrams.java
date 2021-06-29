@@ -9,15 +9,18 @@ package br.bireme.ngrams;
 
 import br.bireme.ngrams.Field.Status;
 import com.fasterxml.jackson.databind.ObjectMapper;
+//import com.github.vickumar1981.stringdistance.util.StringDistance;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
@@ -28,6 +31,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import javax.xml.parsers.ParserConfigurationException;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -65,20 +70,24 @@ public class NGrams {
         public final float similarity;
         public final float score;
         private final String compare;
+        private final ArrayList<CheckFieldResult> resltList;
 
         Result(final String[] param,
                final Document doc,
                final float similarity,
-               final float score) {
+               final float score,
+               final ArrayList<CheckFieldResult> resltList) {
             assert param != null;
             assert doc != null;
             assert similarity >= 0;
             assert score >= 0;
+            assert resltList != null;
 
             this.param = param;
             this.doc = doc;
             this.similarity = similarity;
             this.score = score;
+            this.resltList = resltList;
             this.compare = similarity + "_" + doc.get(DatabaseField.FNAME) + "_"
                                                        + doc.get(IdField.FNAME);
         }
@@ -439,6 +448,7 @@ public class NGrams {
      * @param inFileEncoding
      * @param outFile
      * @param outFileEncoding
+     * @param report
      * @param selfCheck
      * @throws IOException
      * @throws ParseException
@@ -449,6 +459,7 @@ public class NGrams {
                               final String inFileEncoding,
                               final String outFile,
                               final String outFileEncoding,
+                              final boolean report,
                               final boolean selfCheck) throws IOException,
                                                                 ParseException {
         if (index == null) {
@@ -482,11 +493,26 @@ public class NGrams {
                                           new File(inFile).toPath(), inCharset);
              final BufferedWriter writer = Files.newBufferedWriter(
                                       new File(outFile).toPath(), outCharset)) {
-            writer.append("rank|similarity|search_doc_id|index_doc_id|" +
-                          "ngram_search_text|ngram_index_text|search_source|" +
-                                                              "index_source\n");
 
-            final Set<Result> results = new HashSet<>();
+            if (report) {
+                final StringBuilder sb = new StringBuilder();
+                boolean first = true;
+                for (br.bireme.ngrams.Field fld: parameters.getSearchFields().values()) {
+                    if (first) first = false;
+                    else sb.append("|");
+                    sb.append(fld.name).append("_1").append("|");
+                    sb.append(fld.name).append("_2").append("|");
+                    sb.append(fld.name).append("_similarity").append("|");
+                    sb.append(fld.name).append("_veridict");
+                }
+                writer.append(sb.toString());
+            } else {
+                writer.append("rank|similarity|search_doc_id|index_doc_id|" +
+                    "ngram_search_text|ngram_index_text|search_source|" +
+                                                              "index_source");
+            }
+
+            final List<Result> results = new ArrayList<>();
             while (true) {
                 final String line = reader.readLine();
                 if (line == null) {
@@ -506,7 +532,7 @@ public class NGrams {
                     searchRaw(parameters, searcher, analyzer, ngDistance,
                                         tline, true, selfCheck, id_id, results);
                     if (!results.isEmpty()) {
-                        writeOutput(parameters, results, writer);
+                        writeOutput(parameters, results, writer, report);
                     }
                 }
             }
@@ -517,7 +543,7 @@ public class NGrams {
     public static Set<String> search(final NGIndex index,
                                      final NGSchema schema,
                                      final String text,
-                                     final boolean original,
+                                     final boolean report,
                                      final boolean selfCheck) throws IOException,
                                                                 ParseException {
         if (index == null) {
@@ -535,7 +561,7 @@ public class NGrams {
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
-        final Set<Result> results = new HashSet<>();
+        final List<Result> results = new ArrayList<>();
 
         final String ttext = text.replace(':', ' ').trim();
         final String[] split = ttext.split(" *\\| *", Integer.MAX_VALUE);
@@ -548,14 +574,14 @@ public class NGrams {
 
         searcher.getIndexReader().close();
 
-        return original ? results2pipeFull(parameters, results)
-                        : results2pipe(parameters, results);
+        return report ? result2PipeReport(parameters, results)
+                        : results2pipeFull(parameters, results);
     }
 
     public static Set<String> srcWithoutSimil(final NGIndex index,
                                               final NGSchema schema,
                                               final String text,
-                                              final boolean original,
+                                              final boolean report,
                                               final boolean selfCheck)
                                                          throws IOException,
                                                                 ParseException {
@@ -574,7 +600,7 @@ public class NGrams {
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
-        final Set<Result> results = new HashSet<>();
+        final List<Result> results = new ArrayList<>();
 
         final String ttext = text.replace(':', ' ').trim();
         final String[] split = ttext.split(" *\\| *", Integer.MAX_VALUE);
@@ -587,8 +613,8 @@ public class NGrams {
 
         searcher.getIndexReader().close();
 
-        return original ? results2pipeFull(parameters, results)
-                        : results2pipe(parameters, results);
+        return report ? result2PipeReport(parameters, results)
+                        : results2pipeFull(parameters, results);
     }
 
     public static Set<String> searchJson(final NGIndex index,
@@ -611,14 +637,14 @@ public class NGrams {
         final NGramDistance ngDistance = new NGramDistance(
                                                        analyzer.getNgramSize());
         final Set<String> id_id = new HashSet<>();
-        final TreeSet<Result> results = new TreeSet<>();
+        final List<Result> results = new ArrayList<>();
         final String ttext = text.replace(':', ' ').trim();
 
         searchRaw(parameters, searcher, analyzer, ngDistance, ttext, true,
                                                      selfCheck, id_id, results);
         searcher.getIndexReader().close();
 
-        return results2json(parameters, results.descendingSet());
+        return results2json(parameters, results);
     }
 
     // <id>|<ngram search text>|<content>|...|<content>
@@ -630,7 +656,7 @@ public class NGrams {
                                  final boolean useSimilarity,
                                  final boolean selfCheck,
                                  final Set<String> id_id,
-                                 final Set<Result> results)
+                                 final List<Result> results)
                                             throws IOException, ParseException {
         assert parameters != null;
         assert searcher != null;
@@ -643,8 +669,28 @@ public class NGrams {
             throw new NullPointerException("text");
         }
 
-        final String text2 = StringEscapeUtils.unescapeHtml4(text);
-        final String[] param = text2.trim().split(" *\\| *", Integer.MAX_VALUE);
+        final String text2 = StringEscapeUtils.unescapeHtml4(text).trim();
+        
+        final long count = text2.chars().filter(ch -> ch == '|').count();
+        String[] param;
+        if (parameters.maxIdxFieldPos == count) {
+            param = text2.trim().split(" *\\| *", Integer.MAX_VALUE);  // Avoid problems with string starting with "
+        } else {
+            final List<CSVRecord> records = CSVFormat.EXCEL.withDelimiter('|')
+                    .parse(new StringReader(text2.trim())).getRecords();
+            if (records.isEmpty()) {
+                throw new IOException(text);
+            }
+            final CSVRecord record = records.get(0);
+            final int size = record.size();
+            
+            param = new String[size];
+
+            for (int i = 0; i < size; i++) {
+                param[i] = record.get(i);
+            }
+        }
+        
         if (param.length != parameters.nameFields.size()) {
             throw new IOException(text);
         }
@@ -656,8 +702,10 @@ public class NGrams {
 
         if (!ntext.isEmpty()) {
             final String fname = parameters.indexed.name;
-            final QueryParser parser = new QueryParser(fname, analyzer);
-            final Query query = parser.parse(QueryParser.escape(ntext));
+            final QueryParser parser = new QueryParser(fname, analyzer); // current version
+            //final QueryParser parser = new QueryParser(Version.LUCENE_40, fname, analyzer);   // Lucene 4.0
+            String escaped = QueryParser.escape(ntext);
+            final Query query = parser.parse(escaped);
             final TopDocs top = searcher.search(query, MAX_RESULTS);
             final float lower = parameters.scores.last().minValue;
             final ScoreDoc[] scores = top.scoreDocs;
@@ -673,8 +721,7 @@ public class NGrams {
                     if (dname == null) {
                         throw new IOException("dname");
                     }
-                    final float similarity = ngDistance.getDistance(ntext,
-                                                                doc.get(fname));
+                    final float similarity = ngDistance.getDistance(ntext, dname);
                     if (similarity < lower) {
                         if (remaining > 3) {
                             remaining = 3;
@@ -719,23 +766,6 @@ public class NGrams {
         assert similarity >= 0;
         assert score >= 0;
 
-        final Result ret;
-        final Collection<br.bireme.ngrams.Field> fields =
-                                                 parameters.nameFields.values();
-        int matchedFields = 0;
-        boolean maxScore = false;
-
-        for (final br.bireme.ngrams.Field fld: fields) {
-            final int val = checkField(ngDistance, fld, param, doc);
-            if (val == -1) {
-                // field does not match
-            } else if (val == -2) {
-                maxScore = true;
-            } else {
-                matchedFields += val;
-            }
-        }
-
         final String id1 = param[parameters.id.pos];
         final String id2 = (String)doc.get("id");
         final String idb1 = id1 + "_" + Tools.normalize(param[parameters.db.pos],
@@ -743,33 +773,47 @@ public class NGrams {
         final String idb2 = id2 + "_" + (String)doc.get("database");
         final String id1id2 = (idb1.compareTo(idb2) <= 0) ? (idb1 + "_" + idb2)
                                                           : (idb2 + "_" + idb1);
+        final Result ret;
 
         if (selfCheck && id_id.contains(id1id2)) {
             ret = null; // document is reject (no field passed the check)
         } else {
-            if (checkScore(parameters, similarity, matchedFields, maxScore)) {
+            int matchedFields = 0;
+            boolean maxScore = false;
+            boolean denyDup = false;
+            final Collection<br.bireme.ngrams.Field> fields =
+                                                 parameters.sfields.values();
+            final ArrayList<CheckFieldResult> resltList = new ArrayList<>();
+
+            for (final br.bireme.ngrams.Field fld: fields) {
+                final CheckFieldResult result =
+                             checkField(similarity, ngDistance, fld, param, doc);
+                resltList.add(result);
+
+                switch(result.condition) {
+                    case NOT_SIMILAR:
+                    case IGNORE:
+                        break;
+                    case MAX_SCORE:
+                        maxScore = true;
+                        break;
+                    case DENY_DUP:
+                        denyDup = true;
+                        break;
+                    default:
+                        matchedFields += 1;
+                }
+            }
+            if (denyDup) {
+                ret = null;
+            } else if (checkScore(parameters, similarity, matchedFields, maxScore)) {
                 id_id.add(id1id2);
-                ret = new NGrams.Result(param, doc, similarity, score);
+                ret = new NGrams.Result(param, doc, similarity, score, resltList);
             } else {
                 ret = null;
             }
         }
 
-        /*if (matchedFields == 0) {
-            ret = null; // document is reject (no field passed the check)
-        } else {
-            if (checkScore(parameters, similarity, matchedFields, maxScore)) {
-                //ret = new NGrams.Result(param, doc, similarity, score);
-                if (id_id.contains(id1id2)) {
-                    ret = null;
-                } else {
-                    id_id.add(id1id2);
-                    ret = new NGrams.Result(param, doc, similarity, score);
-                }
-            } else {
-                ret = null;
-            }
-        }*/
         return ret;
     }
 
@@ -782,19 +826,19 @@ public class NGrams {
         assert matchedFields > 0;
 
         Score score = null;
-        for (final Score score1 : parameters.scores) {            
+        for (final Score score1 : parameters.scores) {
             final float minValue = maxScore ? 1 : score1.minValue;
             if (similarity >= minValue) {
                 score = score1;
                 break;
             }
         }
-        
+
         return (score != null) && (matchedFields >= score.minFields);
     }
 
     public static Set<String> results2pipe(final Parameters parameters,
-                                           final Set<Result> results) {
+                                           final List<Result> results) {
         assert parameters != null;
         assert results != null;
 
@@ -804,13 +848,13 @@ public class NGrams {
             final String[] param = result.param;
             final Document doc = result.doc;
             final String itext = (String)doc.get(parameters.indexed.name +
-                                            "~notnormalized").replace('|', '!');
+                                     NOT_NORMALIZED_FLD).replace('|', '!');
             final String stext = param[parameters.indexed.pos].trim()
                                                              .replace('|', '!');
             final String id1 = param[parameters.id.pos];
-            final String id2 = (String)doc.get("id~notnormalized");
+            final String id2 = (String)doc.get("id" + NOT_NORMALIZED_FLD);
             final String src1 = param[parameters.db.pos];
-            final String src2 = (String)doc.get("database");
+            final String src2 = (String)doc.get("database" + NOT_NORMALIZED_FLD);
             final String str = result.score + "|" + result.similarity + "|" +
                     id1 + "|" + id2 + "|" + stext + "|" + itext + "|" + src1 +
                     "|" + src2;
@@ -821,7 +865,7 @@ public class NGrams {
     }
 
     public static Set<String> results2pipeFull(final Parameters parameters,
-                                               final Set<Result> results) {
+                                               final List<Result> results) {
         assert parameters != null;
         assert results != null;
 
@@ -846,7 +890,7 @@ public class NGrams {
             }
             for (final br.bireme.ngrams.Field field: flds) {
                 final String fldN = Tools.mkString(doc.getValues(field.name), OCC_SEPARATOR);
-                final String fld = Tools.mkString(doc.getValues(field.name + NGrams.NOT_NORMALIZED_FLD),
+                final String fld = Tools.mkString(doc.getValues(field.name + NOT_NORMALIZED_FLD),
                                                   OCC_SEPARATOR);
                 builder.append("|").append((fld == null) ? ""
                                                        : fld.replace('|', '!'));
@@ -858,8 +902,38 @@ public class NGrams {
         return ret.descendingSet();
     }
 
+    public static Set<String> result2PipeReport(final Parameters parameters,
+                                                final List<Result> results) {
+        assert parameters != null;
+        assert results != null;
+
+        final TreeSet<String> ret = new TreeSet<>();
+        final StringBuilder builder = new StringBuilder();
+        final Collection<br.bireme.ngrams.Field> flds = parameters.sfields
+                                                                      .values();
+        for (final Result result : results) {
+            boolean first = true;
+            builder.setLength(0);
+
+            for (CheckFieldResult fcr: result.resltList) {
+                if (first) {
+                    first = false;
+                } else {
+                    builder.append("|");
+                }
+
+                builder.append(fcr.elem1).append("|").append(fcr.elem2)
+                       .append("|").append(fcr.similarity)
+                       .append("|").append(fcr.condition);
+            }
+            ret.add(builder.toString());
+        }
+
+        return ret.descendingSet();
+    }
+
     public static Set<String> results2json(final Parameters parameters,
-                                           final Set<Result> results) {
+                                           final List<Result> results) {
         assert parameters != null;
         assert results != null;
 
@@ -931,200 +1005,304 @@ public class NGrams {
 
     /**
      *
+     * @param similarity
      * @param ngDistance
      * @param field
      * @param param
      * @param doc
-     * @return -2 : fields dont match and contentMatch is MAX_SCORE
-     *         -1 : fields dont match and contentMatch is required
-     *          1 : fields match
+     * @return CheckFieldResult
      */
-    public static int checkField(final NGramDistance ngDistance,
-                                 final br.bireme.ngrams.Field field,
-                                 final String[] param,
-                                 final Document doc) {
+    public static CheckFieldResult checkField(final float similarity,
+                                              final NGramDistance ngDistance,
+                                              final br.bireme.ngrams.Field field,
+                                              final String[] param,
+                                              final Document doc) {
         assert ngDistance != null;
         assert field != null;
         assert param != null;
         assert doc != null;
 
-        final int ret;
+        final CheckFieldResult ret;
 
-        final String fld = param[field.pos];
+        final String text = param[field.pos].trim();
         if (field instanceof IndexedNGramField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            ret = compareIndexedNGramFields(ngDistance, field, nfld, doc);
+            ret = compareIndexedNGramFields(similarity, field, text, doc);
         } else if (field instanceof NGramField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            ret = compareNGramFields(ngDistance, field, nfld, doc);
+            ret = compareNGramFields(ngDistance, field, text, doc);
+        } else if (field instanceof DiceField) {
+            ret = compareDiceFields(ngDistance, field, text, doc);    
         } else if (field instanceof RegExpField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            ret = compareRegExpFields(field, nfld, doc);
+            ret = compareRegExpFields(field, text, doc);
         } else if (field instanceof ExactField) {
-            final String nfld = Tools.limitSize(Tools.normalize(fld, OCC_SEPARATOR),
-                                                       MAX_NG_TEXT_SIZE).trim();
-            final String idxText = (String)doc.get(field.name);
-            ret = compareFields(field, nfld, idxText);
+            ret = compareExactFields(field, text, doc);
         } else if (field instanceof AuthorsField) {
-            final String[] authors = Tools.normalize2(fld, OCC_SEPARATOR);
-            ret = compareAuthorFields(field, authors, doc);
+            ret = compareAuthorFields(field, text, doc);
         } else {
-            ret = 0;
+            final String fldText = (String)doc.get(field.name + NOT_NORMALIZED_FLD);
+            ret = new CheckFieldResult(field.name, text, fldText, Condition.IGNORE,
+                                         ngDistance.getDistance(text, fldText));
         }
 
         return ret;
     }
 
-    private static int compareIndexedNGramFields(final NGramDistance ngDistance,
-                                                 final br.bireme.ngrams.Field field,
-                                                 final String fld,
-                                                 final Document doc) {
-        assert ngDistance != null;
+    private static CheckFieldResult compareIndexedNGramFields(final float similarity,
+                                                              final br.bireme.ngrams.Field field,
+                                                              final String text,
+                                                              final Document doc) {
         assert field != null;
+        assert text != null;
         assert doc != null;
 
-        final String text = (String)doc.get(field.name);
-        final String xfld = (fld == null) ? "" : fld.trim();
-        final String xtext = (text == null) ? "" : text.trim();
+        final String fldText = (String)doc.get(field.name + NOT_NORMALIZED_FLD);
 
-        return (xfld.isEmpty() && xtext.isEmpty()) ? -1 : 0;
+        return new CheckFieldResult(field.name, text, fldText,
+                                                  Condition.IGNORE, similarity);
     }
 
-    private static int compareNGramFields(final NGramDistance ngDistance,
-                                          final br.bireme.ngrams.Field field,
-                                          final String fld,
-                                          final Document doc) {
+    private static CheckFieldResult compareNGramFields(final NGramDistance ngDistance,
+                                                       final br.bireme.ngrams.Field field,
+                                                       final String text,
+                                                       final Document doc) {
         assert ngDistance != null;
         assert field != null;
+        assert text != null;
         assert doc != null;
 
-        final int ret;
-        final String text = (String)doc.get(field.name);
-        final String xfld = (fld == null) ? "" : fld.trim();
-        final String xtext = (text == null) ? "" : text.trim();
+        final CheckFieldResult ret;
+        final String normFldText = (String)doc.get(field.name);
+        final String fldText = (String)doc.get(field.name + NOT_NORMALIZED_FLD);
+        final String normText = Tools.limitSize(
+                Tools.normalize(text, OCC_SEPARATOR),MAX_NG_TEXT_SIZE).trim();
+        final float similarity = ngDistance.getDistance(normFldText, normText);
+        final boolean passed = !normFldText.isEmpty() &&
+                               (similarity >= ((NGramField)field).minScore);
 
-        if (xfld.isEmpty() && xtext.isEmpty()) {
-            ret = -1;
+        if (passed) {
+            ret = new CheckFieldResult(field.name, text, fldText,
+                                                 Condition.SIMILAR, similarity);
+        } else if (field.contentMatch == Status.DENY_DUP) {
+            ret = new CheckFieldResult(field.name, text, fldText,
+                                             Condition.DENY_DUP, similarity);
         } else {
-            final float similarity = ngDistance.getDistance(xfld, xtext);
-            if (similarity >= ((NGramField)field).minScore) {
-                ret = 1;
-            } else if (field.contentMatch == Status.MAX_SCORE) {
-                ret = -2;
-            } else {
-                ret = -1;
+            ret = new CheckFieldResult(field.name, text, fldText,
+                                             Condition.NOT_SIMILAR, similarity);
+        }
+
+        return ret;
+    }
+    
+    private static CheckFieldResult compareDiceFields(final NGramDistance ngDistance,
+                                                      final br.bireme.ngrams.Field field,
+                                                      final String text,
+                                                      final Document doc) {
+        assert ngDistance != null;
+        assert field != null;
+        assert text != null;
+        assert doc != null;
+
+        final CheckFieldResult ret;
+        final String normFldText = (String)doc.get(field.name);
+        final String fldText = (String)doc.get(field.name + NOT_NORMALIZED_FLD);
+        final String normText = Tools.limitSize(
+                Tools.normalize(text, OCC_SEPARATOR),MAX_NG_TEXT_SIZE).trim();
+        final float similarity = (float)DiceCoefficient.diceCoefficientOptimized(normFldText, normText);
+        final boolean passed = !normFldText.isEmpty() &&
+                               (similarity >= ((DiceField)field).minScore);
+
+        if (passed) {
+            ret = new CheckFieldResult(field.name, text, fldText,
+                                                 Condition.SIMILAR, similarity);
+        } else if (field.contentMatch == Status.DENY_DUP) {
+            ret = new CheckFieldResult(field.name, text, fldText,
+                                             Condition.DENY_DUP, similarity);
+        } else {
+            ret = new CheckFieldResult(field.name, text, fldText,
+                                             Condition.NOT_SIMILAR, similarity);
+        }
+
+        return ret;
+    }
+
+    private static CheckFieldResult compareRegExpFields(final br.bireme.ngrams.Field field,
+                                                        final String text,
+                                                        final Document doc) {
+        assert field != null;
+        assert text != null;
+        assert doc != null;
+
+        final CheckFieldResult ret;
+        final String normFldText = (String)doc.get(field.name);
+        final String fldText = (String)doc.get(field.name + NOT_NORMALIZED_FLD);
+        final String normText = Tools.limitSize(
+                Tools.normalize(text, OCC_SEPARATOR),MAX_NG_TEXT_SIZE).trim();
+        final RegExpField regExp = (RegExpField)field;
+        final Matcher mat = regExp.matcher;
+        String content1 = null;
+        String content2 = null;
+
+        mat.reset(normFldText);
+        if (mat.find()) {
+            content1 = mat.group(regExp.groupNum);
+            content1 = (content1 == null) ? "" : content1.trim();
+        }
+        mat.reset(normText);
+        if (mat.find()) {
+            content2 = mat.group(regExp.groupNum);
+            content2 = (content2 == null) ? "" : content2.trim();
+        }
+
+        switch (compareFields(field, content1, content2)) {
+            case -3:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                         Condition.DENY_DUP, 0);
+                break;
+            case -2:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                        Condition.MAX_SCORE, 0);
+                break;
+            case -1:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                      Condition.NOT_SIMILAR, 0);
+                break;
+            case 0:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                           Condition.IGNORE, 0);
+                break;
+            default:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                          Condition.SIMILAR, 1);
+        }
+
+        return ret;
+    }
+
+    private static CheckFieldResult compareExactFields(final br.bireme.ngrams.Field field,
+                                                       final String text,
+                                                       final Document doc) {
+        assert field != null;
+        assert text != null;
+        assert doc != null;
+
+        final CheckFieldResult ret;
+        final String normFldText = (String)doc.get(field.name);
+        final String fldText = (String)doc.get(field.name + NOT_NORMALIZED_FLD);
+        final String normText = Tools.limitSize(
+                Tools.normalize(text, OCC_SEPARATOR),MAX_NG_TEXT_SIZE).trim();
+
+        switch (compareFields(field, normText, normFldText)) {
+            case -3:
+                    ret = new CheckFieldResult(field.name, text, fldText,
+                                                        Condition.DENY_DUP, 0);
+                    break;
+            case -2:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                        Condition.MAX_SCORE, 0);
+                break;
+            case -1:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                      Condition.NOT_SIMILAR, 0);
+                break;
+            case 0:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                           Condition.IGNORE, 0);
+                break;
+            default:
+                ret = new CheckFieldResult(field.name, text, fldText,
+                                                          Condition.SIMILAR, 1);
             }
-        }
 
         return ret;
     }
 
-    private static int compareRegExpFields(final br.bireme.ngrams.Field field,
-                                           final String fld,
-                                           final Document doc) {
+    private static CheckFieldResult compareAuthorFields(final br.bireme.ngrams.Field field,
+                                                        final String text,
+                                                        final Document doc) {
         assert field != null;
+        assert text != null;
         assert doc != null;
 
-        final int ret;
-        final String text = (String)doc.get(field.name);
-        final String xfld = (fld == null) ? "" : fld.trim();
-        final String xtext = (text == null) ? "" : text.trim();
+        final String[] normTextAuthors = Tools.normalize2(text, OCC_SEPARATOR);
+        final String[] normFldAuthors = doc.getValues(field.name);
+        final String fldAuthors = Tools.mkString(
+                doc.getValues(field.name + NOT_NORMALIZED_FLD), OCC_SEPARATOR);
+        final boolean maxValue = (field.contentMatch == Status.MAX_SCORE);
+        final boolean denyDup = (field.contentMatch == Status.DENY_DUP);
+        final CheckFieldResult ret;
 
-        if (xfld.isEmpty() && xtext.isEmpty()) {
-            ret = -1;
-        } else {
-            final RegExpField regExp = (RegExpField)field;
-            final Matcher mat = regExp.matcher;
+        if ((normTextAuthors.length > 0) && (normFldAuthors.length > 0)) {
+            final Set<String> authorSet = new HashSet<>();
 
-            mat.reset(xtext);
-            if (mat.find()) {
-                final String content1 = mat.group(regExp.groupNum);
-                if (content1 == null) {
-                    ret = compareFields(field, xfld, xtext);
-                } else {
-                    mat.reset(xfld);
-                    if (mat.find()) {
-                        final String content2 = mat.group(regExp.groupNum);
-                        if (content2 == null) {
-                            ret = compareFields(field, xfld, xtext);
-                        } else {
-                            ret = compareFields(field, content1, content2);
-                        }
-                    } else {
-                        ret = compareFields(field, xfld, xtext);
+            for (String fldAuthor: normFldAuthors) {
+                final String au = fldAuthor.trim();
+                if (!au.isEmpty()) authorSet.add(au);
+            }
+            boolean found = true;
+            for (String author: normTextAuthors) {
+                final String aut = author.trim();
+                if ((!aut.isEmpty()) && (!authorSet.isEmpty())) { // Do not remove
+                    if (!checkAuthor(aut, authorSet)) {
+                        found = false;
+                        break;
                     }
                 }
+            }
+            if (found) {
+                final float sym = (float)
+                     DiceCoefficient.diceCoefficientOptimized(text, fldAuthors);
+                if (sym < 0.75) {
+                    if (denyDup) {
+                        ret = new CheckFieldResult(field.name, text, fldAuthors,
+                                                       Condition.DENY_DUP, sym);
+                    } else {
+                        ret = new CheckFieldResult(field.name, text, fldAuthors,
+                                                    Condition.NOT_SIMILAR, sym);
+                    }
+                } else {
+                    ret = new CheckFieldResult(field.name, text, fldAuthors,
+                                                        Condition.SIMILAR, sym);
+                }
             } else {
-                ret = compareFields(field, xfld, xtext);
+                if (denyDup) {
+                    ret = new CheckFieldResult(field.name, text, fldAuthors,
+                                               Condition.DENY_DUP, 0);
+                } else {
+                    ret = new CheckFieldResult(field.name, text, fldAuthors,
+                     maxValue ? Condition.MAX_SCORE : Condition.NOT_SIMILAR, 0);
+                }
+            }
+        } else {
+            if (denyDup) {
+                ret = new CheckFieldResult(field.name, "", "",
+                                                         Condition.DENY_DUP, 0);
+            } else {
+                ret = new CheckFieldResult(field.name, "", "",
+                     maxValue ? Condition.MAX_SCORE : Condition.NOT_SIMILAR, 0);
             }
         }
+
         return ret;
     }
 
-    private static int compareAuthorFields(final br.bireme.ngrams.Field field,
-                                           final String[] authors,
-                                           final Document doc) {
-        final String[] docAuthors = doc.getValues(field.name);
-        final String[] doc1;
-        final String[] doc2;
+    private static boolean checkAuthor(String author,
+                                       Set<String> authors) {
+        final double THRESHOLD = 0.4;
+        String moreSimilar = null;
+        double similarity = THRESHOLD;
 
-        if (docAuthors.length > authors.length) {
-            doc1 = docAuthors;
-            doc2 = authors;
-        } else {
-            doc1 = authors;
-            doc2 = docAuthors;
-        }
-        int idx1 = 0;
-        int idx2 = 0;
-
-        while ((idx1 < doc1.length) && (idx2 < doc2.length)) {
-            if (compareAuthors(doc1[idx1], doc2[idx2])) {
-                idx2 += 1;
+        for (String aut: authors) {
+            //Double smithWaterman = StringDistance.smithWaterman(author, aut);
+            //final Double diceCoefficient = StringDistance.diceCoefficient(author, aut);
+            final Double diceCoefficient = DiceCoefficient.diceCoefficientOptimized(author, aut);
+//System.out.println("\t\tdiceCoefficient=" + diceCoefficient);
+            if (diceCoefficient >= similarity) {
+                similarity = diceCoefficient;
+                moreSimilar = aut;
             }
-            idx1 += 1;
         }
+        final boolean ret = (moreSimilar != null);
+        if (ret) authors.remove(moreSimilar);
 
-        return (idx2 == doc2.length) ? 1 : -2;
-    }
-
-    /**
-     * Compare if two authors are possible the same
-     */
-    private static boolean compareAuthors(final String author1,
-                                          final String author2) {
-        final boolean ret;
-
-        if ((author1 == null) || (author1.isEmpty()) ||
-            (author2 == null) || (author2.isEmpty())) {
-            ret = false;
-        } else {
-            final String[] strArr1 = Tools.normalize2(author1.trim().replaceAll("\\s{2,}", " "), " ");
-            final String[] strArr2 = Tools.normalize2(author2.trim().replaceAll("\\s{2,}", " "), " ");
-            final String[] sa1;
-            final String[] sa2;
-
-            if (strArr1.length > strArr2.length) {
-                sa1 = strArr1;
-                sa2 = strArr2;
-            } else {
-                sa1 = strArr2;
-                sa2 = strArr1;
-            }
-            int idx1 = 0;
-            int idx2 = 0;
-
-            while ((idx1 < sa1.length) && (idx2 < sa2.length)) {
-                if (compareAuthors(sa1[idx1], sa2[idx2])) {
-                    idx2 += 1;
-                }
-                idx1 += 1;
-            }
-            ret = (idx2 == sa2.length);
-        }
         return ret;
     }
 
@@ -1133,8 +1311,10 @@ public class NGrams {
      * @param field - configuration of the document
      * @param fld - text used to search
      * @param text - txt from index
-     * @return -2 : fields dont match and contentMatch is MAX_SCORE
+     * @return -3 : fields dont match and contentMatch is DENY_DUP
+     *         -2 : fields dont match and contentMatch is MAX_SCORE
      *         -1 : fields dont match and contentMatch is required
+     *          0 : ignore this field
      *          1 : fields match
      */
     private static int compareFields(final br.bireme.ngrams.Field field,
@@ -1146,29 +1326,33 @@ public class NGrams {
         final String xfld = (fld == null) ? "" : fld.trim();
         final String xtext = (text == null) ? "" : text.trim();
 
-        if (xfld.equals(xtext) && (!xfld.isEmpty())) {
-            ret = 1;
-        } else if (field.contentMatch == Status.MAX_SCORE) {
-            ret = -2;
+        if (xfld.equals(xtext)) {
+            ret = xfld.isEmpty() ? 0 : 1;
         } else {
-            ret = -1;
+            if (xfld.isEmpty() || xtext.isEmpty()) ret = 0;
+            else if (field.contentMatch == Status.DENY_DUP) ret = -3;
+            else if (field.contentMatch == Status.MAX_SCORE) ret = -2;
+            else ret = -1;
         }
 
         return ret;
     }
 
     private static void writeOutput(final Parameters parameters,
-                                    final Set<Result> results,
-                                    final BufferedWriter writer)
+                                    final List<Result> results,
+                                    final BufferedWriter writer,
+                                    final boolean report)
                                                             throws IOException {
         assert parameters != null;
         assert results != null;
         assert writer != null;
 
         boolean first = true;
+        final Set<String> pipes = report ? result2PipeReport(parameters, results)
+                                           : results2pipe(parameters, results);
 
         writer.newLine();
-        for (final String pipe : results2pipe(parameters, results)) {
+        for (final String pipe : pipes) {
             if (first) {
                 first = false;
             } else {
@@ -1202,8 +1386,8 @@ public class NGrams {
         final TreeMap<Integer,String> fields = new TreeMap<>();
         final IndexReader reader = index.getIndexSearcher().getIndexReader();
         final int maxdoc = reader.maxDoc();
-        //final Bits liveDocs = MultiFields.getLiveDocs(reader);
-        final Bits liveDocs = MultiBits.getLiveDocs(reader);
+        final Bits liveDocs = MultiBits.getLiveDocs(reader);  // current version
+        //final Bits liveDocs = MultiFields.getLiveDocs(reader);  // Lucene 4.0
         final BufferedWriter writer = Files.newBufferedWriter(
                        Paths.get(outFile),
                        Charset.forName(outFileEncoding),
@@ -1270,7 +1454,7 @@ public class NGrams {
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <inFile> - input file. See format bellow" +
           "\n       <inFileEncoding> - input file encoding" +
-          "\n\n   search1 <indexPath> <confFile> <confFileEncoding> <inFile> <inFileEncoding> <outFile> [<outFileEncoding>] - find similar documents." +
+          "\n\n   search1 <indexPath> <confFile> <confFileEncoding> <inFile> <inFileEncoding> <outFile> [<outFileEncoding>] [--report] - find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
@@ -1278,18 +1462,19 @@ public class NGrams {
           "\n       <inFileEncoding> - input file encoding" +
           "\n       <outFile> - output file. See format bellow" +
           "\n       [<outFileEncoding>] - output file encoding. Default = UTF-8" +
-          "\n\n   search2 <indexPath> <confFile> <confFileEncoding> <text> [--original] - find similar documents." +
+          "\n       [--report] - if present the output will be a complete version otherwise a simple version will be shown" +
+          "\n\n   search2 <indexPath> <confFile> <confFileEncoding> <text> [--report] - find similar documents." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <text> - text used to find documents" +
-          "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
-          "\n\n   search3 <indexPath> <confFile> <confFileEncoding> <text> [--original] - find similar documents - IT DOES NOT USE SIMILARITY FUNCTION." +
+          "\n       [--report] - if present the output will be a complete version otherwise a simple version will be shown" +
+          "\n\n   search3 <indexPath> <confFile> <confFileEncoding> <text> [--report] - find similar documents - IT DOES NOT USE SIMILARITY FUNCTION." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
           "\n       <confFileEncoding> - configuration file character encoding." +
           "\n       <text> - text used to find documents" +
-          "\n       [--original] - if present the output type will be the original pipe text otherwise will be a shorterned one" +
+          "\n       [--report] - if present the output will be a complete version otherwise a simple version will be shown" +
           "\n\n   export <indexPath> <confFile> <confFileEncoding> <outFile> <outFileEncoding> - exports all active index documents into a piped file." +
           "\n       <indexPath> - Lucene index name/path" +
           "\n       <confFile> - xml configuration file. See documentation for format." +
@@ -1334,9 +1519,16 @@ public class NGrams {
             }
             final NGIndex index = new NGIndex("dummy", args[1], true);
             if (args.length == 7) {
-                search(index, schema, args[4], args[5], args[6], "utf-8", false);
+                search(index, schema, args[4], args[5], args[6], "utf-8", false, false);
+            } else if (args.length == 8) {
+                if (args[7].equals("---report")) {
+                    search(index, schema, args[4], args[5], args[6], "utf-8", true, false);
+                } else {
+                    search(index, schema, args[4], args[5], args[6], "utf-8", false, false);
+                }
             } else {
-                search(index, schema, args[4], args[5], args[6], args[7], false);
+                final String outFileEncoding = args[7].equals("--report") ? args[8] : args[7];
+                search(index, schema, args[4], args[5], args[6], outFileEncoding, true, false);
             }
             index.close();
             System.out.println("Searching has finished.");
@@ -1349,7 +1541,7 @@ public class NGrams {
 
             if (args.length == 5) {
                 set = search(index, schema, args[4], false, false);
-            } else if (args[5].equals("--original")) {
+            } else if (args[5].equals("--report")) {
                 set = search(index, schema, args[4], true, false);
             } else usage();
             if ((set == null) || (set.isEmpty())) {
@@ -1370,7 +1562,7 @@ public class NGrams {
 
             if (args.length == 5) {
                 set = srcWithoutSimil(index, schema, args[4], false, false);
-            } else if (args[5].equals("--original")) {
+            } else if (args[5].equals("--report")) {
                 set = srcWithoutSimil(index, schema, args[4], true, false);
             } else usage();
             if ((set == null) || (set.isEmpty())) {

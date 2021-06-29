@@ -56,7 +56,8 @@ public class CompareResults {
         assert encoding != null;
 
         try (DirectoryReader ireader = DirectoryReader.open(
-                new MMapDirectory(new File(indexPath).toPath()))) {
+                new MMapDirectory(new File(indexPath).toPath()))) {   // current version
+               //new MMapDirectory(new File(indexPath)))) {               // Lucene 4.0
             final IndexSearcher isearcher = new IndexSearcher(ireader);
 
             try (BufferedReader breader = Files.newBufferedReader(

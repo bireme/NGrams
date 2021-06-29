@@ -18,9 +18,10 @@ import java.util.regex.Pattern;
 
 public class Field {
     public enum Status { REQUIRED,  // the field presence is required to check this field
-                         MAX_SCORE  // if the field is missing then
+                         MAX_SCORE,  // if the field is missing then
                                     // minimum score will be 1.0
                                     // instead of minScore.
+                         DENY_DUP   // if the field doesnt match then it denies doc duplication 
                        }
 
     public final String name;         // field's name
@@ -86,9 +87,10 @@ class DatabaseField extends Field {
 }
 
 class AuthorsField extends Field {
-    final static String FNAME = "authors";
-    AuthorsField(final int pos) {
-        super(FNAME, pos, Status.MAX_SCORE, null);
+    AuthorsField(final String name,
+                 final int pos,
+                 final Status contentMatch) {
+        super(name, pos, contentMatch, null);
     }
 }
 
@@ -166,6 +168,29 @@ class NGramField extends Field {
         if ((minScore < 0) || (minScore > 1)) {
             throw new IllegalArgumentException("minScore: " + minScore
                                                                     + " [0,1]");
+        }
+        this.minScore = minScore;
+    }
+}
+
+class DiceField extends Field {
+    final float minScore;
+
+    DiceField(final String name,
+              final int pos,
+              final Status contentMatch,
+              final float minScore) {
+        this(name, pos, contentMatch, null, minScore);
+    }
+    DiceField(final String name,
+              final int pos,
+              final Status contentMatch,
+              final String requiredField,
+              final float minScore) {
+        super(name, pos, contentMatch, requiredField);
+        if ((minScore < 0) || (minScore > 1)) {
+            throw new IllegalArgumentException("minScore: " + minScore
+                                                                        + " [0,1]");
         }
         this.minScore = minScore;
     }

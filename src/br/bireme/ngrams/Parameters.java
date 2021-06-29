@@ -12,7 +12,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-/**
+/**<
  *
  * @author Heitor Barbieri
  * date: 20150720
@@ -27,6 +27,8 @@ public class Parameters {
     final Set<NGramField> ngrams;
     final Set<RegExpField> regexps;
     final Set<NoCompareField> nocompare;
+    final Set<DiceField> dices;
+
     final Map<Integer,Field> sfields;  // search (pos,field)
     final Map<String,Field> nameFields;  // field name (name,field)
     final int maxIdxFieldPos; // last position into piped expression (index process)
@@ -39,7 +41,8 @@ public class Parameters {
                final Set<ExactField> exacts,
                final Set<NGramField> ngrams,
                final Set<RegExpField> regexps,
-               final Set<NoCompareField> nocompare) {
+               final Set<NoCompareField> nocompare,
+               final Set<DiceField> dices) {
         assert scores != null;
         assert db != null;
         assert id != null;
@@ -48,6 +51,7 @@ public class Parameters {
         assert ngrams != null;
         assert regexps != null;
         assert nocompare != null;
+        assert dices != null;
 
         this.scores = scores;
         this.db = db;
@@ -58,12 +62,12 @@ public class Parameters {
         this.ngrams = ngrams;
         this.regexps = regexps;
         this.nocompare = nocompare;
+        this.dices = dices;
 
         // number of fields
         final int nfields = 3 + ((authors == null) ? 0 : 1)  + exacts.size() +
-                   ngrams.size() + regexps.size() + nocompare.size();
-//System.out.println("3+" + exacts.size() + "+" +  ngrams.size() + "+" + regexps.size()
-//                                                      + "+" + nocompare.size());
+                   ngrams.size() + regexps.size() + nocompare.size() + dices.size();
+
         int maxPos = 0;
 
         sfields = new TreeMap<>();
@@ -87,6 +91,9 @@ public class Parameters {
         }
         for (NoCompareField nocomp : nocompare) {
             maxPos = addField(nocomp, nfields, maxPos);
+        }
+        for (DiceField dice: dices) {
+            maxPos = addField(dice, nfields, maxPos);
         }
         if (nfields == 3) {
             throw new IllegalArgumentException("Empty check list of fields");

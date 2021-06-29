@@ -10,6 +10,7 @@ package br.bireme.ngrams;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.Normalizer;
@@ -46,17 +47,20 @@ public class Tools {
             throw new NullPointerException("fieldName");
         }
         try (Directory directory = FSDirectory.open(
-                new File(indexName).toPath())) {
+            new File(indexName).toPath())) {   // current version
+            //new File(indexName))) {                   // Lucene 4.0
             final DirectoryReader ireader = DirectoryReader.open(directory);
-            final List<LeafReaderContext> leaves = ireader.leaves();
+            final List<LeafReaderContext> leaves = ireader.leaves();    // current version
+            //final List<AtomicReaderContext> leaves = ireader.leaves();     // Lucene 4.0
             if (leaves.isEmpty()) {
                 throw new IOException("empty leaf readers list");
-            }
+            }        
             final Terms terms = leaves.get(0).reader().terms(fieldName);
             /*final Terms terms = SlowCompositeReaderWrapper.wrap(ireader)
                     .terms(fieldName);*/
             if (terms != null) {
-                final TermsEnum tenum = terms.iterator();
+                final TermsEnum tenum = terms.iterator();  // current version
+                //final TermsEnum tenum = terms.iterator(null);  // Lucene 4.0
                 int pos = 0;
                 // PostingsEnum penum = null;
 
@@ -82,7 +86,8 @@ public class Tools {
     public static void showTokens(final Analyzer analyzer,
                                   final String fieldName,
                                   final String text) throws IOException {
-        TokenStream tokenStream = analyzer.tokenStream(fieldName, text);
+        //TokenStream tokenStream = analyzer.tokenStream(fieldName, text); // current version
+        TokenStream tokenStream = analyzer.tokenStream(fieldName, new StringReader(text));  // Lucene 4.0
         OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
         CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
 

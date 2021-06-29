@@ -30,7 +30,8 @@ public class TestIndex {
                                                    SAXException {
 
         final NGSchema schema = new NGSchema("", schemaFile, schemaEncoding);
-        final FSDirectory directory = FSDirectory.open(new File(indexDir).toPath());
+        final FSDirectory directory = FSDirectory.open(new File(indexDir).toPath());  // current version
+        //final FSDirectory directory = FSDirectory.open(new File(indexDir));  // Lucene 4.0
         final DirectoryReader ireader = DirectoryReader.open(directory);
 
         return test(ireader, schema);

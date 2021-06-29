@@ -8,6 +8,7 @@
 package br.bireme.ngrams;
 
 import java.io.IOException;
+import java.io.Reader;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 
@@ -23,8 +24,10 @@ public class NGTokenizer extends Tokenizer {
     private final CharTermAttribute termAtt;
     private boolean doubleTok; // gener tokens two times.
 
-    public NGTokenizer(int ngramSize) {
-        super();
+    public NGTokenizer(int ngramSize) {  // current version
+    //public NGTokenizer(int ngramSize, Reader reader) {  // Lucene 4.0
+        super();   // current version
+        //super(reader);      // Lucene 4.0
         if (ngramSize < 1) {
             throw new IllegalArgumentException("ngramSize < 1");
         }

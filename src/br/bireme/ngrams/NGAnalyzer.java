@@ -7,6 +7,7 @@
 
 package br.bireme.ngrams;
 
+import java.io.Reader;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.ngram.NGramTokenizer;
@@ -45,11 +46,14 @@ public class NGAnalyzer extends Analyzer {
     }
 
     @Override
-    protected Analyzer.TokenStreamComponents createComponents(String fieldName) {
+    protected Analyzer.TokenStreamComponents createComponents(String fieldName) {  // current version
+    //protected Analyzer.TokenStreamComponents createComponents(String fieldName, Reader reader) {    // Lucene 4.0
         final Tokenizer source;
 
-        source = search ? new NGTokenizer(ngramSize) // generate side by size ngrams
-                        : new NGramTokenizer(ngramSize, ngramSize); // generate all ngrams
+        source = search ? new NGTokenizer(ngramSize) // generate side by size ngrams // current version
+                        : new NGramTokenizer(ngramSize, ngramSize); // generate all ngrams   // current version
+        //source = search ? new NGTokenizer(ngramSize, reader) // generate side by size ngrams // Lucene 4.0
+                        //: new NGramTokenizer(reader, ngramSize, ngramSize); // generate all ngrams   // Lucene 4.0
 
         // Não funciona - se duas strings diferem de apenas uma letra,
         // todos os tokens serão diferentes.
