@@ -8,7 +8,7 @@ val commonsCsvVersion = "1.10.0"
 val commonsLangVersion = "3.12.0"
 val commonsTextVersion = "1.10.0"
 val jacksonVersion = "2.14.2"
-val luceneVersion = "9.5.0" //"8.5.1" //"6.0.0"
+val luceneVersion = "9.7.0" //"9.5.0" //"8.5.1" //"6.0.0"
 val stringDistVersion = "1.2.7"
 
 
