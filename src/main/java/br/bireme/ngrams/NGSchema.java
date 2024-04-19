@@ -109,7 +109,6 @@ public class NGSchema {
         builder.append("\"name\":\"");
         builder.append(name);
         builder.append("\",\"score\":[");
-        first = true;
         for (Score score: parameters.scores) {
             if (first) {
                 first = false;

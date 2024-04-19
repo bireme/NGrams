@@ -117,8 +117,7 @@ class ParameterParser {
             throw new IOException("[" + name +
                                  "] - databaseField - missing 'pos' attribute");
         }
-        final DatabaseField src = new DatabaseField(Integer.parseInt(pos));
-        return src;
+        return new DatabaseField(Integer.parseInt(pos));
     }
 
     static IdField parseIdField(final String name,
@@ -141,8 +140,7 @@ class ParameterParser {
             throw new IOException("[" + name +
                                        "] - idField - missing 'pos' attribute");
         }
-        final IdField id = new IdField(Integer.parseInt(pos));
-        return id;
+        return new IdField(Integer.parseInt(pos));
     }
 
     static AuthorsField parseAuthorsField(final String name,
@@ -182,9 +180,8 @@ class ParameterParser {
                                                             + matchStr);
         }
         match = Status.valueOf(matchStr);
-        final AuthorsField authors =
-                          new AuthorsField(name1, Integer.parseInt(pos), match);
-        return authors;
+
+        return new AuthorsField(name1, Integer.parseInt(pos), match);
     }
 
     static IndexedNGramField parseIdxNGramField(final String name,
@@ -213,10 +210,7 @@ class ParameterParser {
             throw new IOException("[" + name +
                                  "] - idxNGramField - missing 'pos' attribute");
         }
-        final IndexedNGramField idxNGram = new IndexedNGramField(
-              name1,
-              Integer.parseInt(pos));
-        return idxNGram;
+        return  new IndexedNGramField(name1, Integer.parseInt(pos));
     }
 
     static Set<NGramField> parseNGramFields(final String name,

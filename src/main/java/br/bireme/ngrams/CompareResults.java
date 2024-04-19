@@ -106,8 +106,8 @@ public class CompareResults {
         final ScoreDoc[] scores2 = top2.scoreDocs;
 
         if ((scores1.length > 0) && (scores2.length > 0)) {
-            final Document doc1 = isearcher.doc(scores1[0].doc);
-            final Document doc2 = isearcher.doc(scores2[0].doc);
+            final Document doc1 = isearcher.storedFields().document(scores1[0].doc);
+            final Document doc2 = isearcher.storedFields().document(scores2[0].doc);
 
             writeDocDifferences(similarity, doc1, doc2, bwriter);
         }

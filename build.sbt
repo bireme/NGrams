@@ -2,13 +2,13 @@ name := "NGrams"
 
 version := "1.0"
 
-scalaVersion := "2.13.11"
+scalaVersion := "2.13.13"
 
 val commonsCsvVersion = "1.10.0"
-val commonsLangVersion = "3.12.0"
-val commonsTextVersion = "1.10.0"
-val jacksonVersion = "2.15.2"
-val luceneVersion = "9.7.0" //"9.5.0" //"8.5.1" //"6.0.0"
+val commonsLangVersion = "3.14.0" //"3.12.0"
+val commonsTextVersion = "1.12.0" //"1.10.0"
+val jacksonVersion = "2.17.0" //"2.15.2"
+val luceneVersion = "9.10.0" //"9.7.0"
 val stringDistVersion = "1.2.7"
 
 

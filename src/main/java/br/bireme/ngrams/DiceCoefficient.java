@@ -15,8 +15,8 @@ import java.util.Set;
 public class DiceCoefficient {
     //Note that this implementation is case-sensitive!
     public static double diceCoefficient(String s1, String s2) {
-	Set<String> nx = new HashSet<String>();
-	Set<String> ny = new HashSet<String>();
+	Set<String> nx = new HashSet<>();
+	Set<String> ny = new HashSet<>();
 
 	for (int i=0; i < s1.length()-1; i++) {
 		char x1 = s1.charAt(i);
@@ -31,7 +31,7 @@ public class DiceCoefficient {
 		ny.add(tmp);
 	}
 
-	Set<String> intersection = new HashSet<String>(nx);
+	Set<String> intersection = new HashSet<>(nx);
 	intersection.retainAll(ny);
 	double totcombigrams = intersection.size();
 

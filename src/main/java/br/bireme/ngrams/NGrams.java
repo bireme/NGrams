@@ -714,7 +714,7 @@ public class NGrams {
                 if (remaining-- <= 0) {
                     break;  // Only for performance
                 }
-                final Document doc = searcher.doc(sdoc.doc);
+                final Document doc = searcher.storedFields().document(sdoc.doc);
                 if (useSimilarity) {
                     final String dname = doc.get(fname);
                     if (dname == null) {
@@ -1398,7 +1398,7 @@ public class NGrams {
 
         for (int docID = 0; docID < maxdoc; docID++) {
             if ((liveDocs != null) && (!liveDocs.get(docID))) continue;
-            final Document doc = reader.document(docID);
+            final Document doc = reader.storedFields().document(docID);
 
             if (first) {
                 first = false;
