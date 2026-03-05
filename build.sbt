@@ -2,7 +2,6 @@ name := "NGrams"
 
 version := "1.0"
 
-<<<<<<< HEAD
 scalaVersion := "2.13.18"
 
 val commonsCsvVersion = "1.14.1"
@@ -10,15 +9,6 @@ val commonsLangVersion = "3.20.0" //"3.12.0"
 val commonsTextVersion = "1.15.0" //"1.10.0"
 //val jacksonVersion = "2.17.0" //"2.17.0" "2.15.2"
 val luceneVersion = "10.4.0" //"10.3.2" //"9.7.0"
-=======
-scalaVersion := "2.13.13"
-
-val commonsCsvVersion = "1.10.0"
-val commonsLangVersion = "3.14.0" //"3.12.0"
-val commonsTextVersion = "1.12.0" //"1.10.0"
-val jacksonVersion = "2.17.0" //"2.15.2"
-val luceneVersion = "9.10.0" //"9.7.0"
->>>>>>> d13f84982cdde7dcd486bcebc44cff7f23cf8df5
 val stringDistVersion = "1.2.7"
 
 libraryDependencies ++= Seq(
