@@ -38,15 +38,13 @@ public class TestIndex {
     }
 
     public static boolean test(final IndexReader ireader,
-                               final NGSchema schema) throws IOException,
-                                                   ParserConfigurationException,
-                                                   SAXException {
+                               final NGSchema schema) throws IOException {
         final Parameters parameters = schema.getParameters();
         final Map<String, Field> fields = parameters.getNameFields();
         boolean bad = false;
 
         for (int id = 0; id < ireader.maxDoc(); id++) {
-            final Document doc = ireader.document(id);
+            final Document doc = ireader.storedFields().document(id);
 
             if (id % 100000 == 0) System.out.println("+++ "+ id);
             bad = badDocument(doc, fields);

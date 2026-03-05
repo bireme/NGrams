@@ -8,7 +8,10 @@
 package br.bireme.ngrams;
 
 import br.bireme.ngrams.Field.Status;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+//import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+
 //import com.github.vickumar1981.stringdistance.util.StringDistance;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -31,6 +34,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import javax.xml.parsers.ParserConfigurationException;
+
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.text.StringEscapeUtils;
@@ -70,8 +74,8 @@ public class NGrams {
         public final Document doc;
         public final float similarity;
         public final float score;
-        private final String compare;
-        private final ArrayList<CheckFieldResult> resltList;
+        public final String compare;
+        public final ArrayList<CheckFieldResult> resltList;
 
         Result(final String[] param,
                final Document doc,
@@ -221,8 +225,9 @@ public class NGrams {
         }
         if (! pipedDocT.isEmpty()) {
             final Parameters parameters = schema.getParameters();
-            if (Tools.countOccurrences(pipedDoc, '|') < parameters.maxIdxFieldPos) {
-                throw new IOException("invalid number of fields: [" + pipedDoc + "]");
+            final int occs = Tools.countOccurrences(pipedDoc, '|');
+            if (occs < parameters.maxIdxFieldPos) {
+                throw new IOException("invalid number of fields: [" + pipedDoc + "] countOccurrences=" + occs + " < maxIdxFieldPos=" + parameters.maxIdxFieldPos);
             }
             final String pipedDoc2 = StringEscapeUtils.unescapeHtml4(pipedDocT);
             final String[] split = pipedDoc2.replace(':', ' ').trim()
@@ -714,7 +719,7 @@ public class NGrams {
                 if (remaining-- <= 0) {
                     break;  // Only for performance
                 }
-                final Document doc = searcher.doc(sdoc.doc);
+                final Document doc = searcher.storedFields().document(sdoc.doc);
                 if (useSimilarity) {
                     final String dname = doc.get(fname);
                     if (dname == null) {
@@ -1398,7 +1403,7 @@ public class NGrams {
 
         for (int docID = 0; docID < maxdoc; docID++) {
             if ((liveDocs != null) && (!liveDocs.get(docID))) continue;
-            final Document doc = reader.document(docID);
+            final Document doc = reader.storedFields().document(docID);
 
             if (first) {
                 first = false;

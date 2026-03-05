@@ -73,8 +73,8 @@ public class NGIndex {
     }
 
     public IndexWriter getIndexWriter() throws IOException {
-        // if ((writer == null) || (!writer.isOpen())) { // current version
-        if (writer == null) {   // Lucene 4.0
+        if ((writer == null) || (!writer.isOpen())) { // current version
+        //if (writer == null) {   // Lucene 4.0
             writer = getIndexWriter(indexPath, analyzer);
         }
         return writer;
