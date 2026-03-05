@@ -7,7 +7,6 @@
 
 package br.bireme.ngrams;
 
-import java.io.Reader;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.ngram.NGramTokenizer;

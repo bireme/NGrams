@@ -21,7 +21,7 @@ import java.util.TreeMap;
  * Create a report from similarity output report that helps to find lowest value
  * of similarity that still works well.
  * @author Heitor Barbieri
- * @date 20160621
+ * date 20160621
  */
 
 class Elem {

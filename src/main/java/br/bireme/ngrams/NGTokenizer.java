@@ -8,7 +8,6 @@
 package br.bireme.ngrams;
 
 import java.io.IOException;
-import java.io.Reader;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 

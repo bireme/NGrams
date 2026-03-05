@@ -7,5 +7,5 @@ package br.bireme.ngrams;
  * date 20200617
  */
 public enum Condition {
-    SIMILAR, NOT_SIMILAR, IGNORE, MAX_SCORE, DENY_DUP;
+    SIMILAR, NOT_SIMILAR, IGNORE, MAX_SCORE, DENY_DUP
 }
