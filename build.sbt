@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
   //"com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,
   "com.fasterxml.jackson.core" % "jackson-annotations" % "3.0-rc5",
   //"com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
-  "tools.jackson.core" % "jackson-databind" % "3.1.0",
+  "tools.jackson.core" % "jackson-databind" % "3.1.3",
   "org.apache.lucene" % "lucene-analysis-common" % luceneVersion,
   "org.apache.lucene" % "lucene-backward-codecs" % luceneVersion,
   "org.apache.lucene" % "lucene-core" % luceneVersion,

@@ -75,24 +75,24 @@ public class NGrams {
         public final float similarity;
         public final float score;
         public final String compare;
-        public final ArrayList<CheckFieldResult> resltList;
+        public final ArrayList<CheckFieldResult> resultList;
 
         Result(final String[] param,
                final Document doc,
                final float similarity,
                final float score,
-               final ArrayList<CheckFieldResult> resltList) {
+               final ArrayList<CheckFieldResult> resultList) {
             assert param != null;
             assert doc != null;
             assert similarity >= 0;
             assert score >= 0;
-            assert resltList != null;
+            assert resultList != null;
 
             this.param = param;
             this.doc = doc;
             this.similarity = similarity;
             this.score = score;
-            this.resltList = resltList;
+            this.resultList = resultList;
             this.compare = similarity + "_" + doc.get(DatabaseField.FNAME) + "_"
                                                        + doc.get(IdField.FNAME);
         }
@@ -918,7 +918,11 @@ public class NGrams {
             boolean first = true;
             builder.setLength(0);
 
-            for (CheckFieldResult fcr: result.resltList) {
+            for (CheckFieldResult fcr: result.resultList) {
+                String condition = "";
+                if ((fcr.condition == Condition.SIMILAR) &&(fcr.similarity == 1.0)) condition = "IDENTICAL";
+                else condition = fcr.condition.toString();
+
                 if (first) {
                     first = false;
                 } else {
@@ -927,7 +931,7 @@ public class NGrams {
 
                 builder.append(fcr.elem1).append("|").append(fcr.elem2)
                        .append("|").append(fcr.similarity)
-                       .append("|").append(fcr.condition);
+                       .append("|").append(condition);
             }
             ret.add(builder.toString());
         }
